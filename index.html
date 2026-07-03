@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Restaurant OS</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🍗 Restaurant OS</h1>
+    <p>ניהול מסעדה פשוט, מהיר ומסודר</p>
+  </header>
+
+  <main>
+    <section class="card dashboard">
+      <h2>🏠 היום במסעדה</h2>
+      <div class="stats">
+        <div><b id="openTasks">0</b><span>משימות פתוחות</span></div>
+        <div><b id="dailyReports">0</b><span>דיווחים יומיים</span></div>
+        <div><b id="presenceCount">0</b><span>נוכחות עובדים</span></div>
+        <div><b id="ideasCount">0</b><span>שיפורים פתוחים</span></div>
+      </div>
+    </section>
+
+    <nav class="quick">
+      <button onclick="scrollToBox('daily')">🍗 דיווח יומי</button>
+      <button onclick="scrollToBox('tasks')">✅ משימות</button>
+      <button onclick="scrollToBox('presence')">⏰ נוכחות</button>
+      <button onclick="scrollToBox('improvements')">💡 שיפור</button>
+    </nav>
+
+    <section class="card" id="daily">
+      <h2>🍗 דיווח יומי</h2>
+      <p class="hint">ממלאים רק מה שצריך. זה אמור לקחת פחות מ־2 דקות.</p>
+      <label>תאריך</label>
+      <input type="date" id="reportDate">
+
+      <label>🥔 תפוח אדמה - כמה הכנו?</label>
+      <input id="potatoMade" placeholder="לדוגמה: 6 מגשים">
+
+      <label>🥔 תפוח אדמה - כמה נשאר?</label>
+      <input id="potatoLeft" placeholder="לדוגמה: מגש אחד">
+
+      <label>🥬 כרוב - כמה הכנו?</label>
+      <input id="cabbageMade" placeholder="לדוגמה: 4">
+
+      <label>🥬 כרוב - כמה נשאר?</label>
+      <input id="cabbageLeft" placeholder="לדוגמה: 0">
+
+      <label>🍗 שניצלים / חזה עוף</label>
+      <input id="schnitzel" placeholder="לדוגמה: הכנו 90, נשאר 10">
+
+      <label>🗑️ בזבוז / נזרק</label>
+      <input id="waste" placeholder="לדוגמה: נזרק חצי מגש כרוב">
+
+      <label>⚠️ תקלה / הערה חשובה</label>
+      <textarea id="dailyNote" placeholder="מה חשוב לזכור למחר?"></textarea>
+
+      <button class="save" onclick="saveDaily()">שמור דיווח ✅</button>
+      <div id="dailyList"></div>
+    </section>
+
+    <section class="card" id="tasks">
+      <h2>✅ משימות</h2>
+      <label>משימה חדשה</label>
+      <input id="taskText" placeholder="לדוגמה: להזמין שמן">
+
+      <label>סוג משימה</label>
+      <select id="taskType">
+        <option>יומית</option>
+        <option>שבועית</option>
+        <option>חודשית</option>
+        <option>שיפור המסעדה</option>
+      </select>
+
+      <label>אחראי</label>
+      <input id="taskOwner" placeholder="אוראל / עובד">
+
+      <button class="save" onclick="addTask()">הוסף משימה ➕</button>
+      <div id="tasksList"></div>
+    </section>
+
+    <section class="card" id="presence">
+      <h2>⏰ נוכחות עובדים</h2>
+      <label>שם עובד</label>
+      <input id="employeeName" placeholder="שם העובד">
+
+      <label>שעת כניסה</label>
+      <input type="time" id="inTime">
+
+      <label>שעת יציאה</label>
+      <input type="time" id="outTime">
+
+      <label>הערה</label>
+      <input id="presenceNote" placeholder="איחר / יצא מוקדם / עבד טוב">
+
+      <button class="save" onclick="savePresence()">שמור נוכחות ✅</button>
+      <div id="presenceList"></div>
+    </section>
+
+    <section class="card" id="improvements">
+      <h2>💡 שיפור המסעדה</h2>
+      <label>רעיון לשיפור</label>
+      <input id="ideaText" placeholder="לדוגמה: להוסיף מדף לעמדת סלטים">
+
+      <label>עדיפות</label>
+      <select id="ideaPriority">
+        <option>נמוכה</option>
+        <option>בינונית</option>
+        <option>גבוהה</option>
+      </select>
+
+      <button class="save" onclick="addIdea()">הוסף רעיון ➕</button>
+      <div id="ideasList"></div>
+    </section>
+
+    <section class="card">
+      <h2>🔔 תזכורות קבועות</h2>
+      <ul>
+        <li>כל יום: סיכום יום</li>
+        <li>כל שבוע: בדיקת בזבוזים</li>
+        <li>כל שבוע: משימות שיפור</li>
+        <li>כל חודש: יעדים לחודש הבא</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
