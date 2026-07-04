@@ -1,132 +1,28 @@
-const KEY = "restaurant_os_v1";
-let db = JSON.parse(localStorage.getItem(KEY) || '{"daily":[],"tasks":[],"presence":[],"ideas":[]}');
-
-document.getElementById("reportDate").value = new Date().toISOString().slice(0,10);
-
-function save(){
-  localStorage.setItem(KEY, JSON.stringify(db));
-  render();
-}
-
-function scrollToBox(id){
-  document.getElementById(id).scrollIntoView({behavior:"smooth"});
-}
-
-function val(id){
-  return document.getElementById(id).value.trim();
-}
-
-function clear(ids){
-  ids.forEach(id => document.getElementById(id).value = "");
-}
-
-function saveDaily(){
-  db.daily.unshift({
-    date: val("reportDate") || new Date().toISOString().slice(0,10),
-    potatoMade: val("potatoMade"),
-    potatoLeft: val("potatoLeft"),
-    cabbageMade: val("cabbageMade"),
-    cabbageLeft: val("cabbageLeft"),
-    schnitzel: val("schnitzel"),
-    waste: val("waste"),
-    note: val("dailyNote")
-  });
-  clear(["potatoMade","potatoLeft","cabbageMade","cabbageLeft","schnitzel","waste","dailyNote"]);
-  save();
-  alert("הדיווח נשמר ✅");
-}
-
-function addTask(){
-  if(!val("taskText")) return alert("תרשום משימה");
-  db.tasks.unshift({
-    text: val("taskText"),
-    type: val("taskType"),
-    owner: val("taskOwner"),
-    done: false
-  });
-  clear(["taskText","taskOwner"]);
-  save();
-}
-
-function toggleTask(i){
-  db.tasks[i].done = !db.tasks[i].done;
-  save();
-}
-
-function deleteTask(i){
-  db.tasks.splice(i,1);
-  save();
-}
-
-function savePresence(){
-  if(!val("employeeName")) return alert("תרשום שם עובד");
-  db.presence.unshift({
-    name: val("employeeName"),
-    inTime: val("inTime"),
-    outTime: val("outTime"),
-    note: val("presenceNote"),
-    date: new Date().toLocaleDateString("he-IL")
-  });
-  clear(["employeeName","inTime","outTime","presenceNote"]);
-  save();
-}
-
-function addIdea(){
-  if(!val("ideaText")) return alert("תרשום רעיון");
-  db.ideas.unshift({
-    text: val("ideaText"),
-    priority: val("ideaPriority"),
-    done: false
-  });
-  clear(["ideaText"]);
-  save();
-}
-
-function toggleIdea(i){
-  db.ideas[i].done = !db.ideas[i].done;
-  save();
-}
-
-function render(){
-  document.getElementById("openTasks").innerText = db.tasks.filter(t=>!t.done).length;
-  document.getElementById("dailyReports").innerText = db.daily.length;
-  document.getElementById("presenceCount").innerText = db.presence.length;
-  document.getElementById("ideasCount").innerText = db.ideas.filter(i=>!i.done).length;
-
-  document.getElementById("dailyList").innerHTML = db.daily.slice(0,5).map(d => `
-    <div class="item">
-      <b>${d.date}</b><br>
-      🥔 הכנו: ${d.potatoMade || "-"} | נשאר: ${d.potatoLeft || "-"}<br>
-      🥬 הכנו: ${d.cabbageMade || "-"} | נשאר: ${d.cabbageLeft || "-"}<br>
-      🍗 ${d.schnitzel || "-"}<br>
-      🗑️ ${d.waste || "-"}<br>
-      📝 ${d.note || "-"}
-    </div>
-  `).join("");
-
-  document.getElementById("tasksList").innerHTML = db.tasks.map((t,i) => `
-    <div class="item ${t.done ? "done" : ""}">
-      <b>${t.text}</b><br>
-      סוג: ${t.type} | אחראי: ${t.owner || "-"}<br>
-      <button class="doneBtn" onclick="toggleTask(${i})">✔️ בוצע / פתוח</button>
-      <button class="delBtn" onclick="deleteTask(${i})">🗑️ מחק</button>
-    </div>
-  `).join("");
-
-  document.getElementById("presenceList").innerHTML = db.presence.slice(0,10).map(p => `
-    <div class="item">
-      <b>${p.name}</b> - ${p.date}<br>
-      כניסה: ${p.inTime || "-"} | יציאה: ${p.outTime || "-"}<br>
-      ${p.note || ""}
-    </div>
-  `).join("");
-
-  document.getElementById("ideasList").innerHTML = db.ideas.map((idea,i) => `
-    <div class="item ${idea.done ? "done" : ""}">
-      <b>${idea.text}</b><br>
-      עדיפות: ${idea.priority}<br>
-      <button class="doneBtn" onclick="toggleIdea(${i})">✔️ בוצע / פתוח</button>
-    </div>
-  `).join("");
-}
-render();
+const KEY="restaurant_os_v1_1";
+const defaultWeeklyTasks=["ניקוי פנימי של המדיח + ריכוך","החלפת מנדפים מעל הצ'יפסר (פעם 1)","החלפת מנדפים מעל הצ'יפסר (פעם 2)","ניקוי דלת החנות","שטיפת המחסן"];
+const products=[{key:"potato",name:"🥔 תפוח אדמה"},{key:"cabbage",name:"🥬 כרוב צלוי"},{key:"chicken",name:"🍗 עוף"},{key:"schnitzel",name:"🍗 שניצלים"},{key:"salads",name:"🥗 סלטים"}];
+let db=JSON.parse(localStorage.getItem(KEY)||"null");
+if(!db){db={weeklyTasks:defaultWeeklyTasks.map(text=>({text,done:false,lastDone:""})),orelTasks:[],foodReports:[],employeeReports:[]};}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render();}
+function go(id){document.getElementById(id).scrollIntoView({behavior:"smooth"});}
+function val(id){return document.getElementById(id).value.trim();}
+function clear(ids){ids.forEach(id=>{let e=document.getElementById(id);if(e)e.value="";});}
+function today(){return new Date().toISOString().slice(0,10);}
+document.getElementById("foodDate").value=today();
+function minutes(t){if(!t)return null;const [h,m]=t.split(":").map(Number);return h*60+m;}
+function delayStatus(planned,actual){const p=minutes(planned),a=minutes(actual);if(p===null||a===null)return {text:"לא חושב",diff:0};let diff=a-p;if(diff<=0)return {text:"🟢 סיים בזמן",diff};if(diff<=15)return {text:"🟡 חריגה עד 15 דקות",diff};return {text:"🔴 חריגה מעל 15 דקות",diff};}
+function renderFoodProducts(){document.getElementById("foodProducts").innerHTML=products.map(p=>`<div class="product"><h3>${p.name}</h3><div class="row"><div><label>כמה הכנו / הכנסנו?</label><input id="${p.key}_made" placeholder="לדוגמה: 6 מגשים"></div><div><label>כמה נשאר?</label><input id="${p.key}_left" placeholder="לדוגמה: 1 מגש"></div></div><label>מצב בסוף יום</label><select id="${p.key}_status"><option>🟢 היה בדיוק</option><option>🟡 נשאר ממש מעט</option><option>🔴 נגמר</option><option>⚪ נשאר יותר מדי</option></select></div>`).join("");}
+function toggleWeekly(i){db.weeklyTasks[i].done=!db.weeklyTasks[i].done;db.weeklyTasks[i].lastDone=db.weeklyTasks[i].done?new Date().toLocaleDateString("he-IL"):"";save();}
+function resetWeekly(){if(confirm("לאפס את כל המשימות השבועיות?")){db.weeklyTasks.forEach(t=>t.done=false);save();}}
+function addOrelTask(){const text=val("orelTaskText");if(!text)return alert("תרשום משימה");db.orelTasks.unshift({text,done:false,created:new Date().toLocaleDateString("he-IL")});document.getElementById("orelTaskText").value="";save();}
+function toggleOrel(i){db.orelTasks[i].done=!db.orelTasks[i].done;save();}
+function deleteOrel(i){if(confirm("למחוק משימה?")){db.orelTasks.splice(i,1);save();}}
+function saveFoodReport(){const report={date:val("foodDate")||today(),products:{},taste:val("foodTaste"),tasteNote:val("tasteNote"),shiftLevel:val("shiftLevel"),wasteNote:val("wasteNote"),note:val("foodNote"),createdAt:new Date().toLocaleString("he-IL")};products.forEach(p=>{report.products[p.key]={name:p.name,made:val(`${p.key}_made`),left:val(`${p.key}_left`),status:val(`${p.key}_status`)}});db.foodReports.unshift(report);products.forEach(p=>clear([`${p.key}_made`,`${p.key}_left`]));clear(["tasteNote","wasteNote","foodNote"]);save();alert("דוח אוכל נשמר ✅");}
+function saveEmployee(){if(!val("empName"))return alert("תרשום שם עובד");const status=delayStatus(val("empPlannedOut"),val("empActualOut"));db.employeeReports.unshift({name:val("empName"),inTime:val("empIn"),plannedOut:val("empPlannedOut"),actualOut:val("empActualOut"),delayStatus:status.text,delayMinutes:status.diff,rating:val("empRating"),delayReason:val("empDelayReason"),note:val("empNote"),date:new Date().toLocaleDateString("he-IL")});clear(["empName","empIn","empPlannedOut","empActualOut","empNote"]);save();alert("דיווח עובד נשמר ✅");}
+function render(){const weeklyDone=db.weeklyTasks.filter(t=>t.done).length;document.getElementById("weeklyProgress").innerText=Math.round((weeklyDone/db.weeklyTasks.length)*100)+"%";document.getElementById("orelOpen").innerText=db.orelTasks.filter(t=>!t.done).length;document.getElementById("foodReports").innerText=db.foodReports.length;document.getElementById("employeeReports").innerText=db.employeeReports.length;
+document.getElementById("weeklyTasks").innerHTML=db.weeklyTasks.map((t,i)=>`<div class="item ${t.done?"done":""}"><b>${t.text}</b><br><span class="badge">${t.done?"בוצע":"פתוח"}</span> ${t.lastDone?`<span class="badge">בוצע לאחרונה: ${t.lastDone}</span>`:""}<br><button class="doneBtn" onclick="toggleWeekly(${i})">✔️ בוצע / פתוח</button></div>`).join("");
+document.getElementById("orelTasks").innerHTML=db.orelTasks.map((t,i)=>`<div class="item ${t.done?"done":""}"><b>${t.text}</b><br><span class="badge">${t.done?"בוצע":"פתוח"}</span><br><button class="doneBtn" onclick="toggleOrel(${i})">✔️ בוצע / פתוח</button><button class="delBtn" onclick="deleteOrel(${i})">🗑️ מחק</button></div>`).join("")||`<p class="hint">אין עדיין משימות אישיות.</p>`;
+document.getElementById("employeesList").innerHTML=db.employeeReports.slice(0,5).map(e=>`<div class="item"><b>${e.name}</b> <span class="badge">${e.date}</span><br>כניסה: ${e.inTime||"-"} | צפי סיום: ${e.plannedOut||"-"} | בפועל: ${e.actualOut||"-"}<br>${e.delayStatus} ${e.delayMinutes>0?`(+${e.delayMinutes} דק')`:""}<br>${e.rating}<br>סיבה: ${e.delayReason}<br>הערה: ${e.note||"-"}</div>`).join("");
+document.getElementById("foodHistory").innerHTML=db.foodReports.slice(0,10).map(r=>{const lines=products.map(p=>{const x=r.products[p.key];return `${x.name}: הוכן ${x.made||"-"} | נשאר ${x.left||"-"} | ${x.status}`}).join("<br>");return `<div class="item"><b>${r.date}</b> <span class="badge">${r.shiftLevel}</span><br>${lines}<br>😋 טעם: ${r.taste||"-"}<br>🍽️ הערת טעם: ${r.tasteNote||"-"}<br>🗑️ בזבוז: ${r.wasteNote||"-"}<br>📝 הערה: ${r.note||"-"}</div>`}).join("")||`<p class="hint">אין עדיין דוחות אוכל.</p>`;
+document.getElementById("employeeHistory").innerHTML=db.employeeReports.slice(0,10).map(e=>`<div class="item"><b>${e.name}</b> <span class="badge">${e.date}</span><br>${e.inTime||"-"} עד ${e.actualOut||"-"} | ${e.delayStatus}<br>${e.rating}<br>${e.note||""}</div>`).join("")||`<p class="hint">אין עדיין דיווחי עובדים.</p>`;}
+renderFoodProducts();render();
