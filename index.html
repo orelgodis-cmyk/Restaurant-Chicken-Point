@@ -1,46 +1,104 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Restaurant OS V1.1</title>
-<link rel="manifest" href="manifest.json"><link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurant OS V2</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><h1>🍗 Restaurant OS</h1><p>V1.1 — משימות, דוח אוכל וניהול עובדים</p></header>
-<main>
-<section class="card dashboard"><h2>🏠 היום במסעדה</h2><div class="stats">
-<div><b id="weeklyProgress">0%</b><span>משימות שבועיות</span></div>
-<div><b id="orelOpen">0</b><span>משימות אוראל</span></div>
-<div><b id="foodReports">0</b><span>דוחות אוכל</span></div>
-<div><b id="employeeReports">0</b><span>דיווחי עובדים</span></div>
-</div></section>
-<nav class="quick"><button onclick="go('tasks')">📋 משימות</button><button onclick="go('food')">🍗 דוח אוכל</button><button onclick="go('employees')">👨‍🍳 עובדים</button><button onclick="go('history')">📚 היסטוריה</button></nav>
+<header>
+  <h1>🍗 Restaurant OS</h1>
+  <p>V2 — שמירה בענן עם Firebase</p>
+  <div id="cloudStatus" class="cloud">מתחבר לענן...</div>
+</header>
 
-<section class="card" id="tasks"><h2>📋 משימות</h2>
-<h3>🟠 משימות שבועיות קבועות</h3><p class="hint">סמן בוצע ליד כל משימה. אפשר לאפס בתחילת שבוע.</p>
-<div id="weeklyTasks"></div><button class="secondary" onclick="resetWeekly()">איפוס שבועי 🔄</button>
-<h3>👑 המשימות של אוראל</h3><input id="orelTaskText" placeholder="משימה אישית חדשה"><button class="save" onclick="addOrelTask()">הוסף משימה אישית ➕</button><div id="orelTasks"></div>
+<main>
+<section class="card dashboard">
+  <h2>🏠 היום במסעדה</h2>
+  <div class="stats">
+    <div><b id="weeklyProgress">0%</b><span>משימות שבועיות</span></div>
+    <div><b id="orelOpen">0</b><span>משימות אוראל</span></div>
+    <div><b id="foodReports">0</b><span>דוחות אוכל</span></div>
+    <div><b id="employeeReports">0</b><span>דיווחי עובדים</span></div>
+  </div>
 </section>
 
-<section class="card" id="food"><h2>🍗 דוח אוכל יומי</h2><p class="hint">סוף משמרת: כמה הכנו, כמה נשאר, האם היה טעים ומה ללמוד למחר.</p>
-<label>תאריך</label><input id="foodDate" type="date">
-<div id="foodProducts"></div>
-<label>😋 האם כל האוכל היה טעים היום?</label><select id="foodTaste"><option>כן, הכל היה טעים</option><option>היה משהו פחות טוב</option><option>לא בדקתי</option></select>
-<label>🍽️ אם משהו לא היה טעים / צריך שיפור</label><textarea id="tasteNote" placeholder="לדוגמה: תפוח אדמה יצא יבש / כרוב יצא מצוין / שניצל פחות קריספי"></textarea>
-<label>📈 איך הייתה המשמרת?</label><select id="shiftLevel"><option>חלשה</option><option>רגילה</option><option>חזקה</option><option>מטורפת</option></select>
-<label>🗑️ נזרק אוכל?</label><textarea id="wasteNote" placeholder="מה נזרק וכמה?"></textarea>
-<label>📝 הערות ספציפיות לאותו יום</label><textarea id="foodNote" placeholder="מה קרה היום? מה חשוב לזכור למחר?"></textarea>
-<button class="save" onclick="saveFoodReport()">שמור דוח אוכל ✅</button></section>
+<nav class="quick">
+  <button onclick="go('tasks')">📋 משימות</button>
+  <button onclick="go('food')">🍗 דוח אוכל</button>
+  <button onclick="go('employees')">👨‍🍳 עובדים</button>
+  <button onclick="go('history')">📚 היסטוריה</button>
+</nav>
 
-<section class="card" id="employees"><h2>👨‍🍳 ניהול עובדים</h2><p class="hint">בלי משימות עובד: כניסה, צפי סיום, סיום בפועל, חריגה והערות.</p>
-<label>שם העובד</label><input id="empName" placeholder="למשל גאפר">
-<label>⏰ שעת כניסה</label><input id="empIn" type="time">
-<label>🏁 שעת סיום מתוכננת</label><input id="empPlannedOut" type="time">
-<label>⌛ שעת סיום בפועל</label><input id="empActualOut" type="time">
-<label>⭐ הערכת משמרת</label><select id="empRating"><option>🟢 מעולה</option><option>🟡 טובה</option><option>🟠 בינונית</option><option>🔴 טעונה שיפור</option></select>
-<label>❓ סיבת חריגה אם הייתה</label><select id="empDelayReason"><option>לא הייתה חריגה</option><option>עומס במסעדה</option><option>חוסר בכוח אדם</option><option>תקלה</option><option>אחר</option></select>
-<label>📝 הערות</label><textarea id="empNote" placeholder="עבד טוב / ביקש לצאת מוקדם / איחר / הערה חשובה"></textarea>
-<button class="save" onclick="saveEmployee()">שמור עובד ✅</button><div id="employeesList"></div></section>
+<section class="card" id="tasks">
+  <h2>📋 משימות</h2>
+  <h3>🟠 משימות שבועיות קבועות</h3>
+  <p class="hint">מסמנים בוצע. הנתונים נשמרים בענן.</p>
+  <div id="weeklyTasks"></div>
+  <button class="secondary" onclick="resetWeekly()">איפוס שבועי 🔄</button>
 
-<section class="card" id="history"><h2>📚 היסטוריה</h2><h3>🍗 דוחות אוכל אחרונים</h3><div id="foodHistory"></div><h3>👨‍🍳 דיווחי עובדים אחרונים</h3><div id="employeeHistory"></div></section>
-</main><script src="app.js"></script></body></html>
+  <h3>👑 המשימות של אוראל</h3>
+  <input id="orelTaskText" placeholder="משימה אישית חדשה">
+  <button class="save" onclick="addOrelTask()">הוסף משימה אישית ➕</button>
+  <div id="orelTasks"></div>
+</section>
+
+<section class="card" id="food">
+  <h2>🍗 דוח אוכל יומי</h2>
+  <p class="hint">סוף משמרת: כמה הכנו, כמה נשאר, האם היה טעים ומה ללמוד למחר.</p>
+  <label>תאריך</label>
+  <input id="foodDate" type="date">
+  <div id="foodProducts"></div>
+  <label>😋 האם כל האוכל היה טעים היום?</label>
+  <select id="foodTaste">
+    <option>כן, הכל היה טעים</option>
+    <option>היה משהו פחות טוב</option>
+    <option>לא בדקתי</option>
+  </select>
+  <label>🍽️ אם משהו לא היה טעים / צריך שיפור</label>
+  <textarea id="tasteNote" placeholder="לדוגמה: תפוח אדמה יצא יבש / כרוב יצא מצוין / שניצל פחות קריספי"></textarea>
+  <label>📈 איך הייתה המשמרת?</label>
+  <select id="shiftLevel">
+    <option>חלשה</option>
+    <option>רגילה</option>
+    <option>חזקה</option>
+    <option>מטורפת</option>
+  </select>
+  <label>🗑️ נזרק אוכל?</label>
+  <textarea id="wasteNote" placeholder="מה נזרק וכמה?"></textarea>
+  <label>📝 הערות ספציפיות לאותו יום</label>
+  <textarea id="foodNote" placeholder="מה קרה היום? מה חשוב לזכור למחר?"></textarea>
+  <button class="save" onclick="saveFoodReport()">שמור דוח אוכל בענן ✅</button>
+</section>
+
+<section class="card" id="employees">
+  <h2>👨‍🍳 ניהול עובדים</h2>
+  <p class="hint">כניסה, צפי סיום, סיום בפועל, חריגה והערות.</p>
+  <label>שם העובד</label><input id="empName" placeholder="למשל גאפר">
+  <label>⏰ שעת כניסה</label><input id="empIn" type="time">
+  <label>🏁 שעת סיום מתוכננת</label><input id="empPlannedOut" type="time">
+  <label>⌛ שעת סיום בפועל</label><input id="empActualOut" type="time">
+  <label>⭐ הערכת משמרת</label>
+  <select id="empRating">
+    <option>🟢 מעולה</option><option>🟡 טובה</option><option>🟠 בינונית</option><option>🔴 טעונה שיפור</option>
+  </select>
+  <label>❓ סיבת חריגה אם הייתה</label>
+  <select id="empDelayReason">
+    <option>לא הייתה חריגה</option><option>עומס במסעדה</option><option>חוסר בכוח אדם</option><option>תקלה</option><option>אחר</option>
+  </select>
+  <label>📝 הערות</label><textarea id="empNote" placeholder="עבד טוב / ביקש לצאת מוקדם / איחר / הערה חשובה"></textarea>
+  <button class="save" onclick="saveEmployee()">שמור עובד בענן ✅</button>
+  <div id="employeesList"></div>
+</section>
+
+<section class="card" id="history">
+  <h2>📚 היסטוריה מהענן</h2>
+  <h3>🍗 דוחות אוכל אחרונים</h3><div id="foodHistory"></div>
+  <h3>👨‍🍳 דיווחי עובדים אחרונים</h3><div id="employeeHistory"></div>
+</section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
