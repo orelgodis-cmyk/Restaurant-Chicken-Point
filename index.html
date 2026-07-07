@@ -3,41 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Restaurant OS V2</title>
+<title>Restaurant OS V2.1</title>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
   <h1>🍗 Restaurant OS</h1>
-  <p>V2 — שמירה בענן עם Firebase</p>
+  <p>V2.1 — דשבורד מנהל, דוח אוכל, משימות, עובדים ותובנות</p>
   <div id="cloudStatus" class="cloud">מתחבר לענן...</div>
 </header>
 
 <main>
 <section class="card dashboard">
-  <h2>🏠 היום במסעדה</h2>
+  <h2>🏠 דף בית מנהל</h2>
   <div class="stats">
     <div><b id="weeklyProgress">0%</b><span>משימות שבועיות</span></div>
-    <div><b id="orelOpen">0</b><span>משימות אוראל</span></div>
+    <div><b id="orelOpen">0</b><span>משימות אוראל פתוחות</span></div>
     <div><b id="foodReports">0</b><span>דוחות אוכל</span></div>
     <div><b id="employeeReports">0</b><span>דיווחי עובדים</span></div>
   </div>
+  <div id="managerSummary" class="summaryBox"></div>
 </section>
 
 <nav class="quick">
   <button onclick="go('tasks')">📋 משימות</button>
   <button onclick="go('food')">🍗 דוח אוכל</button>
   <button onclick="go('employees')">👨‍🍳 עובדים</button>
+  <button onclick="go('improvements')">💡 שיפורים</button>
   <button onclick="go('history')">📚 היסטוריה</button>
+  <button onclick="go('insights')">📊 תובנות</button>
 </nav>
 
 <section class="card" id="tasks">
   <h2>📋 משימות</h2>
+
+  <h3>🔴 משימות יומיות</h3>
+  <input id="dailyTaskText" placeholder="הוסף משימה יומית">
+  <button class="save" onclick="addDailyTask()">הוסף משימה יומית ➕</button>
+  <div id="dailyTasks"></div>
+
   <h3>🟠 משימות שבועיות קבועות</h3>
-  <p class="hint">מסמנים בוצע. הנתונים נשמרים בענן.</p>
+  <p class="hint">מסמנים בוצע. בתחילת שבוע אפשר ללחוץ איפוס שבועי.</p>
   <div id="weeklyTasks"></div>
   <button class="secondary" onclick="resetWeekly()">איפוס שבועי 🔄</button>
+
+  <h3>🔵 משימות חודשיות</h3>
+  <input id="monthlyTaskText" placeholder="הוסף משימה חודשית">
+  <button class="save" onclick="addMonthlyTask()">הוסף משימה חודשית ➕</button>
+  <div id="monthlyTasks"></div>
 
   <h3>👑 המשימות של אוראל</h3>
   <input id="orelTaskText" placeholder="משימה אישית חדשה">
@@ -51,14 +65,17 @@
   <label>תאריך</label>
   <input id="foodDate" type="date">
   <div id="foodProducts"></div>
+
   <label>😋 האם כל האוכל היה טעים היום?</label>
   <select id="foodTaste">
     <option>כן, הכל היה טעים</option>
     <option>היה משהו פחות טוב</option>
     <option>לא בדקתי</option>
   </select>
+
   <label>🍽️ אם משהו לא היה טעים / צריך שיפור</label>
   <textarea id="tasteNote" placeholder="לדוגמה: תפוח אדמה יצא יבש / כרוב יצא מצוין / שניצל פחות קריספי"></textarea>
+
   <label>📈 איך הייתה המשמרת?</label>
   <select id="shiftLevel">
     <option>חלשה</option>
@@ -66,16 +83,22 @@
     <option>חזקה</option>
     <option>מטורפת</option>
   </select>
+
   <label>🗑️ נזרק אוכל?</label>
   <textarea id="wasteNote" placeholder="מה נזרק וכמה?"></textarea>
+
   <label>📝 הערות ספציפיות לאותו יום</label>
   <textarea id="foodNote" placeholder="מה קרה היום? מה חשוב לזכור למחר?"></textarea>
+
+  <label>🎯 מה כדאי לעשות אחרת מחר?</label>
+  <textarea id="tomorrowNote" placeholder="לדוגמה: להכניס מגש אחד פחות כרוב / לבדוק שניצלים ב־13:00"></textarea>
+
   <button class="save" onclick="saveFoodReport()">שמור דוח אוכל בענן ✅</button>
 </section>
 
 <section class="card" id="employees">
   <h2>👨‍🍳 ניהול עובדים</h2>
-  <p class="hint">כניסה, צפי סיום, סיום בפועל, חריגה והערות.</p>
+  <p class="hint">כניסה, צפי סיום, סיום בפועל, חריגה והערות. בלי משימות עובד.</p>
   <label>שם העובד</label><input id="empName" placeholder="למשל גאפר">
   <label>⏰ שעת כניסה</label><input id="empIn" type="time">
   <label>🏁 שעת סיום מתוכננת</label><input id="empPlannedOut" type="time">
@@ -93,10 +116,25 @@
   <div id="employeesList"></div>
 </section>
 
+<section class="card" id="improvements">
+  <h2>💡 שיפור המסעדה</h2>
+  <input id="improveText" placeholder="רעיון לשיפור / בעיה לטיפול">
+  <select id="improvePriority">
+    <option>נמוכה</option><option>בינונית</option><option>גבוהה</option>
+  </select>
+  <button class="save" onclick="addImprovement()">הוסף שיפור ➕</button>
+  <div id="improvementsList"></div>
+</section>
+
 <section class="card" id="history">
   <h2>📚 היסטוריה מהענן</h2>
   <h3>🍗 דוחות אוכל אחרונים</h3><div id="foodHistory"></div>
   <h3>👨‍🍳 דיווחי עובדים אחרונים</h3><div id="employeeHistory"></div>
+</section>
+
+<section class="card" id="insights">
+  <h2>📊 תובנות ראשונות</h2>
+  <div id="insightsBox"></div>
 </section>
 </main>
 <script type="module" src="app.js"></script>
