@@ -14,7 +14,7 @@
     <div class="logo">🍗</div>
     <div>
       <h1>Chicken Point</h1>
-      <p>שיטת העבודה הניהולית של אוראל</p>
+      <p>שיטת העבודה הניהולית של אוראל · V4.1 מאוחדת</p>
     </div>
   </div>
   <div id="cloudStatus" class="cloud">מתחבר לענן...</div>
@@ -57,6 +57,44 @@
     <label>תאריך</label>
     <input id="dailyDate" type="date">
 
+    <div class="subcard task-center">
+      <div class="section-title compact">
+        <div>
+          <h3>📋 משימות קבועות ותזכורות</h3>
+          <p class="hint">יומיות, שבועיות וחודשיות חוזרות אוטומטית. כל סימון נשמר בהיסטוריה עם תאריך ושעה.</p>
+        </div>
+        <span id="taskProgressBadge" class="step-badge">0 פתוחות</span>
+      </div>
+
+      <div class="task-grid">
+        <div class="task-column">
+          <h4>☀️ משימות יומיות</h4>
+          <div class="add-line"><input id="dailyTaskText" placeholder="משימה יומית חדשה"><button onclick="addTask('daily')">➕</button></div>
+          <div id="dailyTasks"></div>
+        </div>
+        <div class="task-column">
+          <h4>📅 משימות שבועיות</h4>
+          <div class="add-line"><input id="weeklyTaskText" placeholder="משימה שבועית חדשה"><button onclick="addTask('weekly')">➕</button></div>
+          <div id="weeklyTasks"></div>
+        </div>
+        <div class="task-column">
+          <h4>🗓️ משימות חודשיות</h4>
+          <div class="add-line"><input id="monthlyTaskText" placeholder="משימה חודשית חדשה"><button onclick="addTask('monthly')">➕</button></div>
+          <div id="monthlyTasks"></div>
+        </div>
+        <div class="task-column">
+          <h4>👑 תזכורות אישיות לאוראל</h4>
+          <div class="add-line"><input id="orelTaskText" placeholder="תזכורת אישית חדשה"><button onclick="addTask('orel')">➕</button></div>
+          <div id="orelTasks"></div>
+        </div>
+      </div>
+
+      <details class="history-panel compact-history">
+        <summary>🕘 היסטוריית ביצוע משימות</summary>
+        <div id="taskHistory"></div>
+      </details>
+    </div>
+
     <div class="subcard">
       <h3>1. פתיחת יום — סיבוב מקררים</h3>
       <label class="check-row"><input id="fridgeTour" type="checkbox"> ביצעתי סיבוב מסודר בכל המקררים</label>
@@ -84,40 +122,14 @@
     </div>
 
     <div class="subcard">
-      <h3>3. תכנון כמויות יומי</h3>
-      <label>מצב היום הצפוי</label>
-      <select id="expectedLoad">
-        <option>חלש</option>
-        <option selected>רגיל</option>
-        <option>חזק</option>
-      </select>
-      <div class="three-grid">
-        <div><label>🍗 עוף — כמות מתוכננת</label><input id="plannedChicken" placeholder="לדוגמה: 42 עופות"></div>
-        <div><label>🥗 סלטים — כמות מתוכננת</label><input id="plannedSalads" placeholder="לדוגמה: 6 פיילות"></div>
-        <div><label>🥔 תפוח אדמה — כמות מתוכננת</label><input id="plannedPotato" placeholder="לדוגמה: 8 מגשים"></div>
-      </div>
-      <label>מה מכינים מראש ומה משאירים להשלמה?</label>
-      <textarea id="quantityPlan" placeholder="לדוגמה: 6 מגשים בבוקר, 2 מגשים רק לפי הקצב"></textarea>
-    </div>
-
-    <div class="subcard">
-      <h3>4. שלושת היעדים שלי להיום</h3>
+      <h3>3. שלושת היעדים שלי להיום</h3>
       <input id="goal1" placeholder="יעד 1 — אוכל / כמויות / פחת">
       <input id="goal2" placeholder="יעד 2 — עובדים / שעות">
       <input id="goal3" placeholder="יעד 3 — סדר / ניקיון / איכות">
     </div>
 
     <div class="subcard">
-      <div class="section-title compact">
-        <h3>5. מעקב שעות עובדים</h3>
-        <button class="small secondary" onclick="addEmployeeRow()">➕ הוסף עובד</button>
-      </div>
-      <div id="employeeRows"></div>
-      <p class="hint">שעת היציאה המתוכננת והיציאה בפועל נשמרות בהיסטוריה. המערכת מחשבת חריגה אוטומטית.</p>
-    </div>
-
-    <div class="subcard">
-      <h3>6. בדיקת אמצע יום</h3>
+      <h3>4. בדיקת אמצע יום</h3>
       <div class="three-grid">
         <div><label>האם הכול נקי?</label><select id="midClean"><option>כן</option><option>חלקית</option><option>לא</option></select></div>
         <div><label>האם צריך להכניס עוד אוכל?</label><select id="midMoreFood"><option>לא</option><option>כן — השלמה קטנה</option><option>כן — השלמה גדולה</option></select></div>
@@ -130,7 +142,17 @@
     </div>
 
     <div class="subcard">
-      <h3>7. דיווח סוף יום</h3>
+      <h3>5. דיווח סוף יום</h3>
+
+      <div class="section-title compact employee-end-title">
+        <div>
+          <h4>⏰ שעות יציאה של העובדים</h4>
+          <p class="hint">ממלאים בסוף היום: יציאה מתוכננת מול יציאה בפועל. הכול נשמר בהיסטוריה ומצטבר לדוח השבועי.</p>
+        </div>
+        <button class="small secondary" type="button" onclick="addEmployeeRow()">➕ הוסף עובד</button>
+      </div>
+      <div id="employeeRows"></div>
+
       <label>מה נשאר בסוף היום ובאיזו כמות?</label>
       <textarea id="endLeftovers" placeholder="לדוגמה: 4 עופות, חצי גסטרו תפוח אדמה, רבע פיילה סלט"></textarea>
 
@@ -158,13 +180,40 @@
       <div id="dailyHistory"></div>
     </details>
 
+    <div class="daily-summary-actions">
+      <button class="secondary" onclick="copyLatestDailySummary()">📲 העתק סיכום יומי לאלעד</button>
+      <p class="hint">המערכת מכינה הודעה מהדוח האחרון: בדיקות, בעיות, שעות עובדים, פחת ומה משנים מחר.</p>
+    </div>
+
     <details class="history-panel">
-      <summary>🧰 המשימות הקיימות מהגרסה הקודמת</summary>
-      <div class="legacy-grid">
-        <div><h3>יומיות</h3><div id="legacyDailyTasks"></div></div>
-        <div><h3>שבועיות</h3><div id="legacyWeeklyTasks"></div></div>
-        <div><h3>חודשיות</h3><div id="legacyMonthlyTasks"></div></div>
-        <div><h3>משימות אוראל</h3><div id="legacyOrelTasks"></div></div>
+      <summary>🍗 דוח אוכל מפורט וסטטיסטיקה</summary>
+      <div>
+        <label>תאריך</label><input id="foodDate" type="date">
+        <label>עומס במשמרת</label>
+        <select id="shiftLevel"><option>חלש</option><option selected>רגיל</option><option>חזק</option><option>חזק מאוד</option></select>
+        <div id="foodProducts" class="food-products"></div>
+        <div class="three-grid">
+          <div><label>רמת טעם כללית</label><select id="foodTaste"><option>מעולה</option><option selected>טוב</option><option>בינוני</option><option>לא טוב</option></select></div>
+          <div><label>הערת טעם / איכות</label><input id="tasteNote" placeholder="מה טעמת ומה מצאת"></div>
+          <div><label>הערת פחת</label><input id="foodWasteNote" placeholder="מה נזרק ולמה"></div>
+        </div>
+        <label>הערה כללית</label><textarea id="foodNote" placeholder="אירועים חריגים, חוסר או עומס"></textarea>
+        <label>הנחיה למחר</label><textarea id="foodTomorrowNote" placeholder="מה להכין יותר או פחות מחר"></textarea>
+        <button class="save" onclick="saveFoodReport()">שמור דוח אוכל והיסטוריה ✅</button>
+        <div id="foodInsights" class="insights"></div>
+        <div id="foodHistory"></div>
+      </div>
+    </details>
+
+    <details class="history-panel">
+      <summary>💡 שיפורים והתייעלות</summary>
+      <div>
+        <div class="three-grid improvement-add">
+          <div><label>רעיון / שיפור</label><input id="improveText" placeholder="לדוגמה: להתחיל הכנות למחר חצי שעה מוקדם יותר"></div>
+          <div><label>עדיפות</label><select id="improvePriority"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
+          <div class="button-cell"><button class="secondary" onclick="addImprovement()">➕ הוסף שיפור</button></div>
+        </div>
+        <div id="improvementsList"></div>
       </div>
     </details>
   </section>
@@ -252,6 +301,22 @@
     </details>
   </section>
 </main>
+
+<div id="employeeEditModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-card">
+    <div class="section-title compact">
+      <div>
+        <h2>✏️ עדכון שעות עובדים</h2>
+        <p id="employeeEditDate" class="hint"></p>
+      </div>
+      <button class="small secondary" type="button" onclick="closeEmployeeHoursEditor()">סגור</button>
+    </div>
+    <p class="hint">אפשר לשמור את הדוח גם בלי שעת יציאה בפועל, ולעדכן אותה ביום למחרת. כל עדכון נשמר עם תאריך ושעה.</p>
+    <div id="employeeEditRows"></div>
+    <button class="save" type="button" onclick="saveEmployeeHoursEdit()">שמור את עדכון השעות ✅</button>
+    <p id="employeeEditHint" class="save-hint"></p>
+  </div>
+</div>
 
 <div id="toast" class="toast"></div>
 <script type="module" src="app.js"></script>

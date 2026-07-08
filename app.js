@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, doc, updateDoc,
+  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, increment,
   onSnapshot, query, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
@@ -27,15 +27,33 @@ const cols = {
   legacyDailyTasks: col("dailyTasks"),
   legacyWeeklyTasks: col("weeklyTasks"),
   legacyMonthlyTasks: col("monthlyTasks"),
-  legacyOrelTasks: col("orelTasks")
+  legacyOrelTasks: col("orelTasks"),
+  improvements: col("improvements"),
+  taskHistory: col("taskHistory")
 };
 
 const state = {
   daily: [], issues: [], weekly: [], employees: [], legacyFood: [],
-  legacyDailyTasks: [], legacyWeeklyTasks: [], legacyMonthlyTasks: [], legacyOrelTasks: []
+  legacyDailyTasks: [], legacyWeeklyTasks: [], legacyMonthlyTasks: [], legacyOrelTasks: [],
+  improvements: [], taskHistory: []
 };
 
 let employeeRowCounter = 0;
+let editingDailyReportId = "";
+const resettingTaskIds = new Set();
+const products = [
+  {key:"potato", name:"תפוח אדמה"},
+  {key:"cabbage", name:"כרוב צלוי"},
+  {key:"chicken", name:"עוף"},
+  {key:"schnitzel", name:"שניצלים"},
+  {key:"salads", name:"סלטים"}
+];
+const taskTypes = {
+  daily: {collection:"dailyTasks", stateKey:"legacyDailyTasks", input:"dailyTaskText", label:"יומית"},
+  weekly: {collection:"weeklyTasks", stateKey:"legacyWeeklyTasks", input:"weeklyTaskText", label:"שבועית"},
+  monthly: {collection:"monthlyTasks", stateKey:"legacyMonthlyTasks", input:"monthlyTaskText", label:"חודשית"},
+  orel: {collection:"orelTasks", stateKey:"legacyOrelTasks", input:"orelTaskText", label:"אישית"}
+};
 
 const $ = id => document.getElementById(id);
 const val = id => ($(id)?.value || "").trim();
@@ -72,8 +90,11 @@ function toast(message){
 
 function timestampMs(item){
   if (item?.createdAt?.toMillis) return item.createdAt.toMillis();
+  if (item?.completedAt?.toMillis) return item.completedAt.toMillis();
   if (item?.closedAt?.toMillis) return item.closedAt.toMillis();
   if (item?.createdAtText) return new Date(item.createdAtText).getTime() || 0;
+  if (item?.completedAtText) return new Date(item.completedAtText).getTime() || 0;
+  if (item?.completedDate) return new Date(`${item.completedDate}T00:00:00`).getTime() || 0;
   if (item?.date) return new Date(item.date).getTime() || 0;
   return 0;
 }
@@ -93,6 +114,232 @@ function overtime(planned, actual){
   if (p === null || a === null) return 0;
   return Math.max(0, a - p);
 }
+
+function sundayKey(iso = todayLocal()){
+  const [y,m,d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() - date.getDay());
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth()+1).padStart(2,"0");
+  const dd = String(date.getDate()).padStart(2,"0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+function periodKey(type, iso = todayLocal()){
+  if (type === "daily") return iso;
+  if (type === "weekly") return sundayKey(iso);
+  if (type === "monthly") return iso.slice(0,7);
+  return "once";
+}
+
+async function resetDueTasks(type, items){
+  if (!["daily","weekly","monthly"].includes(type)) return;
+  const currentKey = periodKey(type);
+  for (const task of items){
+    if (!task.done || resettingTaskIds.has(`${type}_${task.id}`)) continue;
+    const lastKey = task.lastDonePeriod || (task.lastDoneISO ? periodKey(type, task.lastDoneISO) : "");
+    if (lastKey === currentKey) continue;
+    const guard = `${type}_${task.id}`;
+    resettingTaskIds.add(guard);
+    try {
+      await updateDoc(doc(db, taskTypes[type].collection, task.id), {
+        done:false,
+        autoResetAt:serverTimestamp(),
+        autoResetForPeriod:currentKey
+      });
+    } catch (error){
+      console.error("Task auto reset failed", error);
+    } finally {
+      resettingTaskIds.delete(guard);
+    }
+  }
+}
+
+window.addTask = async type => {
+  const cfg = taskTypes[type];
+  if (!cfg) return;
+  const text = val(cfg.input);
+  if (!text) return alert("תרשום משימה");
+  try {
+    await addDoc(col(cfg.collection), {
+      text, done:false, taskType:type, createdAt:serverTimestamp(), createdAtText:new Date().toLocaleString("he-IL")
+    });
+    $(cfg.input).value = "";
+    toast(`משימה ${cfg.label} נוספה ✅`);
+  } catch (error){ console.error(error); alert("לא הצלחתי להוסיף את המשימה."); }
+};
+
+window.toggleTask = async (type, id, done) => {
+  const cfg = taskTypes[type];
+  if (!cfg) return;
+  try {
+    if (!done){
+      const task = state[cfg.stateKey].find(t => t.id === id);
+      const iso = todayLocal();
+      await addDoc(cols.taskHistory, {
+        taskId:id, taskText:task?.text || "משימה", taskType:type, taskTypeLabel:cfg.label,
+        completedDate:iso, completedAt:serverTimestamp(), completedAtText:new Date().toLocaleString("he-IL")
+      });
+      await updateDoc(doc(db, cfg.collection, id), {
+        done:true, lastDoneISO:iso, lastDone:new Date().toLocaleDateString("he-IL"),
+        lastDonePeriod:periodKey(type, iso), completedAt:serverTimestamp(), completionCount:increment(1)
+      });
+      toast("המשימה בוצעה ונשמרה בהיסטוריה ✅");
+    } else {
+      await updateDoc(doc(db, cfg.collection, id), {done:false, reopenedAt:serverTimestamp()});
+      toast("המשימה הוחזרה לפתוחות");
+    }
+  } catch (error){ console.error(error); alert("לא הצלחתי לעדכן את המשימה."); }
+};
+
+window.deleteTask = async (type, id) => {
+  const cfg = taskTypes[type];
+  if (!cfg || !confirm("למחוק את המשימה? היסטוריית ביצועים שכבר נשמרה לא תימחק.")) return;
+  try { await deleteDoc(doc(db, cfg.collection, id)); toast("המשימה נמחקה"); }
+  catch (error){ console.error(error); alert("לא הצלחתי למחוק את המשימה."); }
+};
+
+function taskListHTML(items, type){
+  return sorted(items).map(t => `<div class="task-item ${t.done?"done":""}">
+    <div class="task-text"><b>${t.done?"✅":"⬜"} ${esc(t.text || "משימה")}</b>
+      ${t.lastDone ? `<small>בוצע לאחרונה: ${esc(t.lastDone)}</small>` : ""}
+    </div>
+    <div class="task-actions">
+      <button class="${t.done?"reopen-btn":"done-btn"}" onclick="toggleTask('${type}','${t.id}',${Boolean(t.done)})">${t.done?"↩️ פתח":"✔️ בוצע"}</button>
+      <button class="remove-btn" onclick="deleteTask('${type}','${t.id}')">🗑️</button>
+    </div>
+  </div>`).join("") || `<p class="hint">אין עדיין משימות.</p>`;
+}
+
+function renderTasks(){
+  $("dailyTasks").innerHTML = taskListHTML(state.legacyDailyTasks, "daily");
+  $("weeklyTasks").innerHTML = taskListHTML(state.legacyWeeklyTasks, "weekly");
+  $("monthlyTasks").innerHTML = taskListHTML(state.legacyMonthlyTasks, "monthly");
+  $("orelTasks").innerHTML = taskListHTML(state.legacyOrelTasks, "orel");
+  const all = [...state.legacyDailyTasks,...state.legacyWeeklyTasks,...state.legacyMonthlyTasks,...state.legacyOrelTasks];
+  const open = all.filter(t => !t.done).length;
+  const done = all.filter(t => t.done).length;
+  $("taskProgressBadge").textContent = `${open} פתוחות · ${done} בוצעו`;
+  $("taskHistory").innerHTML = sorted(state.taskHistory).slice(0,80).map(h => `<div class="history-row">
+    <b>✅ ${esc(h.taskText || "משימה")}</b>
+    <span>${esc(h.taskTypeLabel || h.taskType || "")} · ${heDate(h.completedDate) || esc(h.completedAtText || "")}</span>
+  </div>`).join("") || `<p class="hint">היסטוריית הביצוע תתחיל מהסימונים החדשים.</p>`;
+}
+
+function renderFoodProducts(){
+  $("foodProducts").innerHTML = products.map(p => `<div class="food-product-row">
+    <h4>${esc(p.name)}</h4>
+    <div class="three-grid">
+      <div><label>כמה הכנו?</label><input id="${p.key}_made" placeholder="כמות"></div>
+      <div><label>כמה נשאר?</label><input id="${p.key}_left" placeholder="כמות"></div>
+      <div><label>מצב סוף יום</label><select id="${p.key}_status"><option>היה בדיוק</option><option>נשאר ממש מעט</option><option>נגמר</option><option>נשאר יותר מדי</option><option>לא הוכן</option></select></div>
+    </div>
+  </div>`).join("");
+}
+
+window.saveFoodReport = async () => {
+  const report = {
+    date: val("foodDate") || todayLocal(), products:{}, taste:val("foodTaste"), tasteNote:val("tasteNote"),
+    shiftLevel:val("shiftLevel"), wasteNote:val("foodWasteNote"), note:val("foodNote"),
+    tomorrowNote:val("foodTomorrowNote"), createdAt:serverTimestamp(), createdAtText:new Date().toLocaleString("he-IL")
+  };
+  products.forEach(p => report.products[p.key] = {name:p.name, made:val(`${p.key}_made`), left:val(`${p.key}_left`), status:val(`${p.key}_status`)});
+  try {
+    await addDoc(cols.legacyFood, report);
+    products.forEach(p => { $(`${p.key}_made`).value=""; $(`${p.key}_left`).value=""; });
+    ["tasteNote","foodWasteNote","foodNote","foodTomorrowNote"].forEach(id => $(id).value="");
+    toast("דוח האוכל נשמר בענן ובהיסטוריה ✅");
+  } catch (error){ console.error(error); alert("לא הצלחתי לשמור את דוח האוכל."); }
+};
+
+function renderFoodModule(){
+  const reports = sorted(state.legacyFood);
+  $("foodHistory").innerHTML = reports.slice(0,30).map(r => {
+    const lines = products.map(p => {
+      const x = r.products?.[p.key] || {};
+      return `<b>${esc(p.name)}:</b> הוכן ${esc(x.made||"-")} · נשאר ${esc(x.left||"-")} · ${esc(x.status||"-")}`;
+    }).join("<br>");
+    return `<div class="item"><b>${heDate(r.date) || esc(r.date || "")} · ${esc(r.shiftLevel || "")}</b><br>${lines}<br>
+      <b>טעם:</b> ${esc(r.taste || "-")} ${r.tasteNote?`· ${esc(r.tasteNote)}`:""}<br>
+      <b>פחת:</b> ${esc(r.wasteNote || "-")}<br><b>למחר:</b> ${esc(r.tomorrowNote || "-")}</div>`;
+  }).join("") || `<p class="hint">עדיין אין דוחות אוכל.</p>`;
+
+  if (reports.length < 2){
+    $("foodInsights").innerHTML = `<div class="insight warn">צריך לפחות שני דוחות אוכל כדי להתחיל לזהות דפוסים.</div>`;
+    return;
+  }
+  const statusCounts = {};
+  reports.forEach(r => products.forEach(p => {
+    const status = r.products?.[p.key]?.status;
+    if (!status) return;
+    statusCounts[p.name] ||= {};
+    statusCounts[p.name][status] = (statusCounts[p.name][status] || 0) + 1;
+  }));
+  $("foodInsights").innerHTML = Object.entries(statusCounts).map(([name, counts]) => {
+    const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+    return `<div class="insight"><b>${esc(name)}</b> — המצב שחזר הכי הרבה: ${esc(top?.[0] || "-")} (${top?.[1] || 0} פעמים)</div>`;
+  }).join("");
+}
+
+window.addImprovement = async () => {
+  const text = val("improveText");
+  if (!text) return alert("תרשום רעיון או שיפור");
+  try {
+    await addDoc(cols.improvements, {text, priority:val("improvePriority"), done:false, createdAt:serverTimestamp(), createdAtText:new Date().toLocaleString("he-IL")});
+    $("improveText").value="";
+    toast("השיפור נוסף למעקב 💡");
+  } catch (error){ console.error(error); alert("לא הצלחתי לשמור את השיפור."); }
+};
+
+window.toggleImprovement = async (id, done) => {
+  try {
+    await updateDoc(doc(db,"improvements",id), {done:!done, completedAt:!done?serverTimestamp():null});
+    toast(!done ? "השיפור בוצע ✅" : "השיפור הוחזר לפתוחים");
+  } catch (error){ console.error(error); alert("לא הצלחתי לעדכן את השיפור."); }
+};
+
+window.deleteImprovement = async id => {
+  if (!confirm("למחוק את השיפור?")) return;
+  try { await deleteDoc(doc(db,"improvements",id)); toast("השיפור נמחק"); }
+  catch (error){ console.error(error); alert("לא הצלחתי למחוק את השיפור."); }
+};
+
+function renderImprovements(){
+  $("improvementsList").innerHTML = sorted(state.improvements).map(i => `<div class="task-item ${i.done?"done":""}">
+    <div class="task-text"><b>${i.done?"✅":"💡"} ${esc(i.text)}</b><small>עדיפות: ${esc(i.priority || "בינונית")}</small></div>
+    <div class="task-actions"><button class="${i.done?"reopen-btn":"done-btn"}" onclick="toggleImprovement('${i.id}',${Boolean(i.done)})">${i.done?"↩️ פתח":"✔️ בוצע"}</button><button class="remove-btn" onclick="deleteImprovement('${i.id}')">🗑️</button></div>
+  </div>`).join("") || `<p class="hint">אין עדיין רעיונות לשיפור.</p>`;
+}
+
+function dailySummaryText(r){
+  if (!r) return "";
+  const tastes = (r.opening?.tastes || []).filter(t=>t.product).map(t=>`${t.product}: ${t.status}${t.note?` (${t.note})`:""}`).join("; ") || "לא נרשמו";
+  const employeeLines = (r.employees || []).map(e => `• ${e.name || "עובד"}: יציאה מתוכננת ${e.plannedOut || "-"}, בפועל ${e.actualOut || "ממתין לעדכון"}${e.actualOut && num(e.delayMinutes)>0?`, חריגה ${num(e.delayMinutes)} דקות`:""}${e.reason?` — ${e.reason}`:""}`).join("\n") || "• לא נרשמו חריגות עובדים";
+  const waste = num(r.endDay?.wasteQuantity)>0 ? `${r.endDay?.wasteProduct || "מוצר"}: ${num(r.endDay?.wasteQuantity)} ${r.endDay?.wasteUnit || ""} — ${r.endDay?.wasteReason || "ללא סיבה"}` : "לא נרשם פחת כמותי";
+  const goals = (r.goals || []).filter(Boolean).map(g=>`• ${g}`).join("\n") || "• לא נרשמו";
+  return `סיכום יומי — Chicken Point — ${heDate(r.date)}\n\nמצב היום: ${r.midday?.actualLoad || r.quantities?.expectedLoad || "לא צוין"}\n\nבדיקות שבוצעו:\n• סיבוב מקררים: ${r.opening?.fridgeTour?"בוצע":"לא סומן"}\n• טריות: ${r.opening?.freshnessStatus || "לא צוין"}\n• סחורה שחייבת להסתיים: ${r.opening?.oldStock || "אין"}\n• חוסרים / מוצר לא תקין: ${r.opening?.shortage || r.opening?.abnormalProduct || "לא נמצאו"}\n• טעימות: ${tastes}\n• בדיקת אמצע יום: ${r.midday?.decision || `${r.midday?.prep || "-"}, ${r.midday?.moreFood || "-"}`}\n\nשעות עובדים בסוף היום:\n${employeeLines}\n\nמה נשאר: ${r.endDay?.leftovers || "לא נרשם"}\nפחת: ${waste}\nבעיה שעלתה: ${r.endDay?.newIssueSummary || "לא עלתה בעיה חדשה"}\n\nשלושת היעדים שנקבעו:\n${goals}\n\nמה משנים מחר:\n${r.endDay?.tomorrowChange || "לא נרשם שינוי"}`;
+}
+
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+  }
+}
+
+window.copyLatestDailySummary = async () => {
+  const latest = sorted(state.daily)[0];
+  if (!latest) return alert("עדיין אין דוח יומי שממנו אפשר להכין סיכום");
+  await copyText(dailySummaryText(latest));
+  toast("הסיכום היומי הועתק — אפשר להדביק בוואטסאפ 📲");
+};
+
+window.copyDailySummary = async id => {
+  const report = state.daily.find(r => r.id === id);
+  if (!report) return;
+  await copyText(dailySummaryText(report));
+  toast("הסיכום הועתק לוואטסאפ 📲");
+};
 
 function renderTasteRows(){
   $("tasteRows").innerHTML = [1,2,3].map(i => `
@@ -158,7 +405,7 @@ function collectEmployees(){
 }
 
 function clearTodayForm(){
-  ["oldStock","abnormalProduct","shortage","plannedChicken","plannedSalads","plannedPotato","quantityPlan","goal1","goal2","goal3","midDecision","endLeftovers","wasteProduct","wasteQuantity","wasteReason","newIssueSummary","tomorrowChange"].forEach(id => { if ($(id)) $(id).value = ""; });
+  ["oldStock","abnormalProduct","shortage","goal1","goal2","goal3","midDecision","endLeftovers","wasteProduct","wasteQuantity","wasteReason","newIssueSummary","tomorrowChange"].forEach(id => { if ($(id)) $(id).value = ""; });
   $("fridgeTour").checked = false;
   [1,2,3].forEach(i => { $("tasteProduct"+i).value=""; $("tasteNote"+i).value=""; $("tasteStatus"+i).value="טוב וטרי"; });
   $("employeeRows").innerHTML = "";
@@ -178,10 +425,6 @@ window.saveDailyReport = async () => {
     opening: {
       fridgeTour: checked("fridgeTour"), oldStock: val("oldStock"), freshnessStatus: val("freshnessStatus"),
       abnormalProduct: val("abnormalProduct"), shortage: val("shortage"), tastes
-    },
-    quantities: {
-      expectedLoad: val("expectedLoad"), chicken: val("plannedChicken"), salads: val("plannedSalads"),
-      potato: val("plannedPotato"), plan: val("quantityPlan")
     },
     goals: [val("goal1"), val("goal2"), val("goal3")],
     employees,
@@ -315,6 +558,7 @@ function weeklyMetrics(){
   const issuesOpened = state.issues.filter(i => isThisWeek(i.date));
   const issuesClosed = state.issues.filter(i => i.status === "closed" && isThisWeek(i.closedDate));
   const employees = state.employees.filter(e => isThisWeek(e.date));
+  const taskCompletions = state.taskHistory.filter(h => isThisWeek(h.completedDate));
   const overtimeMinutes = employees.reduce((sum,e) => sum + Math.max(0, num(e.delayMinutes)), 0);
   const wasteRows = daily.filter(r => num(r.endDay?.wasteQuantity) > 0);
   const wasteByProduct = {};
@@ -331,7 +575,7 @@ function weeklyMetrics(){
     if (num(e.delayMinutes) > 0) delayedEmployees[e.name || "ללא שם"] = (delayedEmployees[e.name || "ללא שם"] || 0) + num(e.delayMinutes);
   });
   const topDelayed = Object.entries(delayedEmployees).sort((a,b) => b[1]-a[1])[0];
-  return {daily, issuesOpened, issuesClosed, employees, overtimeMinutes, wasteRows, topWaste, topCategory, topDelayed};
+  return {daily, issuesOpened, issuesClosed, employees, taskCompletions, overtimeMinutes, wasteRows, topWaste, topCategory, topDelayed};
 }
 
 window.saveWeeklyReport = async () => {
@@ -345,7 +589,7 @@ window.saveWeeklyReport = async () => {
       snapshot: {
         dailyReports: metrics.daily.length, openIssues: state.issues.filter(i => i.status !== "closed").length,
         issuesOpened: metrics.issuesOpened.length, issuesClosed: metrics.issuesClosed.length,
-        overtimeMinutes: metrics.overtimeMinutes, topWaste: metrics.topWaste || null,
+        overtimeMinutes: metrics.overtimeMinutes, tasksCompleted: metrics.taskCompletions.length, topWaste: metrics.topWaste || null,
         topIssueCategory: metrics.topCategory || null, topDelayedEmployee: metrics.topDelayed || null
       },
       createdAt: serverTimestamp(), createdAtText: new Date().toLocaleString("he-IL")
@@ -365,8 +609,11 @@ function renderDashboard(){
   $("todayLabel").textContent = new Date().toLocaleDateString("he-IL", {weekday:"long", day:"numeric", month:"numeric"});
   const nextFollow = sorted(openIssues.filter(i => i.followUpDate)).sort((a,b) => String(a.followUpDate).localeCompare(String(b.followUpDate)))[0];
   const lastDaily = sorted(state.daily)[0];
+  const allTasks = [...state.legacyDailyTasks,...state.legacyWeeklyTasks,...state.legacyMonthlyTasks,...state.legacyOrelTasks];
+  const openTasks = allTasks.filter(t => !t.done).length;
   $("managerSummary").innerHTML = `
     <b>🎯 מה דורש תשומת לב:</b><br>
+    📋 ${openTasks} משימות ותזכורות פתוחות.<br>
     ${openIssues.length ? `🚨 יש ${openIssues.length} מעקבים פתוחים.` : "✅ אין כרגע בעיות פתוחות."}<br>
     ${nextFollow ? `📅 הבדיקה הקרובה: <b>${esc(nextFollow.title)}</b> — ${heDate(nextFollow.followUpDate)}.` : ""}<br>
     ${lastDaily?.endDay?.tomorrowChange ? `➡️ מהדוח האחרון למחר: ${esc(lastDaily.endDay.tomorrowChange)}` : "עדיין לא נשמר שינוי למחר."}
@@ -375,22 +622,122 @@ function renderDashboard(){
 
 function dailyCard(r){
   const tastes = (r.opening?.tastes || []).filter(t => t.product).map(t => `${esc(t.product)} — ${esc(t.status)}`).join(" | ") || "לא נרשמו טעימות";
-  const emp = (r.employees || []).map(e => `${esc(e.name || "עובד")}: ${esc(e.plannedOut || "-")}→${esc(e.actualOut || "-")} ${num(e.delayMinutes)>0?`(+${num(e.delayMinutes)} דק׳)`:""}`).join("<br>") || "לא נרשמו עובדים";
+  const emp = (r.employees || []).map(e => {
+    const actual = e.actualOut ? esc(e.actualOut) : '<span class="pending-text">ממתין לעדכון</span>';
+    return `${esc(e.name || "עובד")}: ${esc(e.plannedOut || "-")}→${actual} ${e.actualOut && num(e.delayMinutes)>0?`(+${num(e.delayMinutes)} דק׳)`:""}${e.reason?` — ${esc(e.reason)}`:""}`;
+  }).join("<br>") || "לא נרשמו עובדים";
   const goals = (r.goals || []).filter(Boolean).map(g => `• ${esc(g)}`).join("<br>") || "לא נרשמו יעדים";
   return `<div class="item">
     <b>${heDate(r.date)}</b> <span class="badge">${esc(r.midday?.actualLoad || r.quantities?.expectedLoad || "")}</span><br>
     <b>מקררים:</b> ${r.opening?.fridgeTour ? "בוצע" : "לא סומן"} | <b>טריות:</b> ${esc(r.opening?.freshnessStatus || "-")}<br>
     <b>סחורה ישנה:</b> ${esc(r.opening?.oldStock || "-")}<br>
     <b>טעימות:</b> ${tastes}<br>
-    <b>כמויות:</b> עוף ${esc(r.quantities?.chicken || "-")} | סלטים ${esc(r.quantities?.salads || "-")} | תפוח אדמה ${esc(r.quantities?.potato || "-")}<br>
     <b>יעדים:</b><br>${goals}<br>
-    <b>עובדים:</b><br>${emp}<br>
+    <b>שעות עובדים בסוף היום:</b><br>${emp}<br>
     <b>אמצע יום:</b> ניקיון ${esc(r.midday?.clean || "-")} | אוכל ${esc(r.midday?.moreFood || "-")} | ${esc(r.midday?.prep || "-")}<br>
     <b>נשאר:</b> ${esc(r.endDay?.leftovers || "-")}<br>
     <b>פחת:</b> ${num(r.endDay?.wasteQuantity) ? `${esc(r.endDay?.wasteProduct)} — ${num(r.endDay?.wasteQuantity)} ${esc(r.endDay?.wasteUnit)}` : "לא נרשם פחת כמותי"}<br>
     <b>למחר:</b> ${esc(r.endDay?.tomorrowChange || "-")}
+    ${r.hoursUpdatedAtText ? `<span class="updated-note">שעות העובדים עודכנו לאחרונה: ${esc(r.hoursUpdatedAtText)}</span>` : ""}
+    <div class="actions">
+      <button class="edit-btn" onclick="openEmployeeHoursEditor('${r.id}')">✏️ עדכן שעות עובדים</button>
+      <button class="edit-btn" onclick="copyDailySummary('${r.id}')">📲 העתק סיכום לאלעד</button>
+    </div>
   </div>`;
 }
+
+
+window.openEmployeeHoursEditor = id => {
+  const report = state.daily.find(r => r.id === id);
+  if (!report) return;
+  editingDailyReportId = id;
+  $("employeeEditDate").textContent = `דוח של ${heDate(report.date)}`;
+  const rows = report.employees || [];
+  $("employeeEditRows").innerHTML = rows.length ? rows.map((e, index) => `
+    <div class="employee-edit-row" data-edit-employee="${index}">
+      <div class="employee-edit-grid">
+        <div><label>שם העובד</label><input data-field="name" value="${esc(e.name || "")}"></div>
+        <div><label>יציאה מתוכננת</label><input data-field="plannedOut" type="time" value="${esc(e.plannedOut || "")}"></div>
+        <div><label>יציאה בפועל</label><input data-field="actualOut" type="time" value="${esc(e.actualOut || "")}"></div>
+      </div>
+      <label>סיבה / הערה</label><input data-field="reason" value="${esc(e.reason || "")}" placeholder="למה נשאר מעבר לתכנון?">
+      <div class="calculated" data-field="calculated">${e.actualOut ? (num(e.delayMinutes)>0 ? `🔴 ${num(e.delayMinutes)} דקות חריגה` : "🟢 יצא בזמן") : "🟡 ממתין לשעת יציאה בפועל"}</div>
+    </div>`).join("") : '<p class="hint">לא נרשמו עובדים בדוח הזה.</p>';
+  document.querySelectorAll('[data-edit-employee] input[type="time"]').forEach(input => {
+    input.addEventListener("change", () => {
+      const row = input.closest('[data-edit-employee]');
+      const planned = row.querySelector('[data-field="plannedOut"]').value;
+      const actual = row.querySelector('[data-field="actualOut"]').value;
+      const box = row.querySelector('[data-field="calculated"]');
+      if (!actual) box.textContent = "🟡 ממתין לשעת יציאה בפועל";
+      else {
+        const diff = overtime(planned, actual);
+        box.textContent = diff > 0 ? `🔴 ${diff} דקות חריגה` : "🟢 יצא בזמן";
+      }
+    });
+  });
+  $("employeeEditHint").textContent = "";
+  $("employeeEditModal").classList.remove("hidden");
+  $("employeeEditModal").setAttribute("aria-hidden", "false");
+};
+
+window.closeEmployeeHoursEditor = () => {
+  editingDailyReportId = "";
+  $("employeeEditModal").classList.add("hidden");
+  $("employeeEditModal").setAttribute("aria-hidden", "true");
+};
+
+window.saveEmployeeHoursEdit = async () => {
+  const report = state.daily.find(r => r.id === editingDailyReportId);
+  if (!report) return;
+  const employees = [...document.querySelectorAll('[data-edit-employee]')].map(row => {
+    const get = field => row.querySelector(`[data-field="${field}"]`)?.value.trim() || "";
+    const plannedOut = get("plannedOut"), actualOut = get("actualOut");
+    return {
+      name: get("name"),
+      inTime: (report.employees?.[Number(row.dataset.editEmployee)]?.inTime) || "",
+      plannedOut, actualOut,
+      delayMinutes: overtime(plannedOut, actualOut),
+      reason: get("reason")
+    };
+  });
+  const nowText = new Date().toLocaleString("he-IL");
+  const history = Array.isArray(report.employeeHoursHistory) ? [...report.employeeHoursHistory] : [];
+  history.push({
+    changedAtText: nowText,
+    previousEmployees: report.employees || []
+  });
+  try {
+    await updateDoc(doc(db, "managerDailyReports", report.id), {
+      employees,
+      employeeHoursHistory: history,
+      hoursUpdatedAt: serverTimestamp(),
+      hoursUpdatedAtText: nowText,
+      hoursEditCount: increment(1)
+    });
+    const linked = state.employees.filter(e => e.sourceDailyReportId === report.id);
+    for (const employee of employees){
+      const existing = linked.find(e => String(e.name || "").trim() === String(employee.name || "").trim());
+      const data = {
+        ...employee,
+        delayStatus: !employee.actualOut ? "🟡 ממתין לעדכון" : employee.delayMinutes > 15 ? "🔴 חריגה מעל 15 דקות" : employee.delayMinutes > 0 ? "🟡 חריגה עד 15 דקות" : "🟢 סיים בזמן",
+        delayReason: employee.reason,
+        updatedAt: serverTimestamp(),
+        updatedAtText: nowText
+      };
+      if (existing) await updateDoc(doc(db, "employeeReports", existing.id), data);
+      else if (employee.name) await addDoc(cols.employees, {
+        ...data, date: report.date, dateText: heDate(report.date), sourceDailyReportId: report.id, note: "נוסף בעדכון שעות מהדוח היומי", createdAt: serverTimestamp()
+      });
+    }
+    $("employeeEditHint").textContent = `השעות עודכנו ונשמרו בהיסטוריה ב־${nowText}.`;
+    toast("שעות העובדים עודכנו ✅");
+    setTimeout(() => closeEmployeeHoursEditor(), 700);
+  } catch (error){
+    console.error(error);
+    alert("לא הצלחתי לעדכן את שעות העובדים. בדוק חיבור לענן ונסה שוב.");
+  }
+};
 
 function renderDailyHistory(){
   $("dailyHistory").innerHTML = sorted(state.daily).map(dailyCard).join("") || `<p class="hint">עדיין אין דוחות יומיים.</p>`;
@@ -447,7 +794,7 @@ function renderWeekly(){
     <div class="metric"><b>${m.wasteRows.length}</b><span>ימים עם פחת כמותי</span></div>
     <div class="metric"><b>${openCount}</b><span>מעקבים פתוחים כעת</span></div>
     <div class="metric"><b>${m.employees.length}</b><span>דיווחי עובדים</span></div>
-    <div class="metric"><b>${state.daily.length}</b><span>דוחות בכל ההיסטוריה</span></div>`;
+    <div class="metric"><b>${m.taskCompletions.length}</b><span>משימות שבוצעו</span></div>`;
 
   const insights = [];
   if (m.topWaste) insights.push(`<div class="insight warn">🗑️ המוצר עם הכמות המצטברת הגבוהה ביותר השבוע: <b>${esc(m.topWaste[0])}</b> — ${m.topWaste[1]} יחידות מדידה שנרשמו.</div>`);
@@ -455,6 +802,7 @@ function renderWeekly(){
   if (m.topDelayed) insights.push(`<div class="insight warn">⏰ העובד עם הכי הרבה דקות חריגה השבוע: <b>${esc(m.topDelayed[0])}</b> — ${m.topDelayed[1]} דקות.</div>`);
   else insights.push(`<div class="insight good">✅ לא נמצאו חריגות שעות השבוע.</div>`);
   if (m.topCategory) insights.push(`<div class="insight">🔎 תחום הבעיה שחזר הכי הרבה: <b>${esc(m.topCategory[0])}</b> — ${m.topCategory[1]} דיווחים.</div>`);
+  insights.push(`<div class="insight">📋 השבוע סומנו <b>${m.taskCompletions.length}</b> משימות כבוצעו ונשמרו בהיסטוריה.</div>`);
   if (m.daily.length < 5) insights.push(`<div class="insight warn">📝 נשמרו רק ${m.daily.length} דוחות ב־7 הימים האחרונים. כדי לזהות דפוסים כדאי לשמור דוח בכל יום עבודה.</div>`);
   else insights.push(`<div class="insight good">📈 יש רצף נתונים טוב השבוע — אפשר כבר להציג מגמות ולא רק תחושות.</div>`);
   $("weeklyInsights").innerHTML = insights.join("");
@@ -476,14 +824,6 @@ function renderWeeklyHistory(){
   }).join("") || `<p class="hint">עדיין אין סיכומים שבועיים.</p>`;
 }
 
-function renderLegacyTasks(){
-  const taskHTML = items => items.map(t => `<div class="legacy-task ${t.done?"done":""}">${t.done?"✅":"⬜"} ${esc(t.text || "משימה")}</div>`).join("") || `<p class="hint">אין נתונים.</p>`;
-  $("legacyDailyTasks").innerHTML = taskHTML(state.legacyDailyTasks);
-  $("legacyWeeklyTasks").innerHTML = taskHTML(state.legacyWeeklyTasks);
-  $("legacyMonthlyTasks").innerHTML = taskHTML(state.legacyMonthlyTasks);
-  $("legacyOrelTasks").innerHTML = taskHTML(state.legacyOrelTasks);
-}
-
 function renderLegacyHistory(){
   const foods = sorted(state.legacyFood).slice(0,20).map(r => {
     const productLines = r.products ? Object.values(r.products).map(p => `${esc(p.name || "מוצר")}: הוכן ${esc(p.made || "-")} | נשאר ${esc(p.left || "-")}`).join("<br>") : "";
@@ -499,13 +839,16 @@ function renderAll(){
   renderIssues();
   renderWeekly();
   renderWeeklyHistory();
-  renderLegacyTasks();
+  renderTasks();
+  renderFoodModule();
+  renderImprovements();
   renderLegacyHistory();
 }
 
-function listenCollection(collectionRef, stateKey){
+function listenCollection(collectionRef, stateKey, taskType = ""){
   onSnapshot(query(collectionRef), snapshot => {
     state[stateKey] = snapshot.docs.map(d => ({id:d.id, ...d.data()}));
+    if (taskType) resetDueTasks(taskType, state[stateKey]);
     renderAll();
   }, error => {
     console.error(`Listener error for ${stateKey}`, error);
@@ -515,7 +858,9 @@ function listenCollection(collectionRef, stateKey){
 
 function init(){
   renderTasteRows();
+  renderFoodProducts();
   $("dailyDate").value = todayLocal();
+  $("foodDate").value = todayLocal();
   $("issueDate").value = todayLocal();
   $("issueFollowUp").value = todayLocal();
   window.addEmployeeRow();
@@ -525,10 +870,12 @@ function init(){
   listenCollection(cols.weekly, "weekly");
   listenCollection(cols.employees, "employees");
   listenCollection(cols.legacyFood, "legacyFood");
-  listenCollection(cols.legacyDailyTasks, "legacyDailyTasks");
-  listenCollection(cols.legacyWeeklyTasks, "legacyWeeklyTasks");
-  listenCollection(cols.legacyMonthlyTasks, "legacyMonthlyTasks");
-  listenCollection(cols.legacyOrelTasks, "legacyOrelTasks");
+  listenCollection(cols.legacyDailyTasks, "legacyDailyTasks", "daily");
+  listenCollection(cols.legacyWeeklyTasks, "legacyWeeklyTasks", "weekly");
+  listenCollection(cols.legacyMonthlyTasks, "legacyMonthlyTasks", "monthly");
+  listenCollection(cols.legacyOrelTasks, "legacyOrelTasks", "orel");
+  listenCollection(cols.improvements, "improvements");
+  listenCollection(cols.taskHistory, "taskHistory");
   setCloud("מחובר לענן ✅", true);
 }
 
