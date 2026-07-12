@@ -14,7 +14,7 @@
     <div class="logo">🍗</div>
     <div>
       <h1>Chicken Point</h1>
-      <p>שיטת העבודה הניהולית של אוראל · V4.1 מאוחדת</p>
+      <p>שיטת העבודה הניהולית של אוראל · V4.3</p>
     </div>
   </div>
   <div id="cloudStatus" class="cloud">מתחבר לענן...</div>
@@ -126,6 +126,8 @@
       <input id="goal1" placeholder="יעד 1 — אוכל / כמויות / פחת">
       <input id="goal2" placeholder="יעד 2 — עובדים / שעות">
       <input id="goal3" placeholder="יעד 3 — סדר / ניקיון / איכות">
+      <button class="save section-save" type="button" onclick="saveMorningReport()">שמור דיווח בוקר ✅</button>
+      <div id="morningSaveHint" class="save-hint"></div>
     </div>
 
     <div class="subcard">
@@ -139,6 +141,8 @@
       <select id="actualLoad"><option>חלש</option><option selected>רגיל</option><option>חזק</option><option>חזק מאוד</option></select>
       <label>מה ראיתי ומה החלטתי?</label>
       <textarea id="midDecision" placeholder="לדוגמה: היום חלש, עצרתי הכנת תפוח אדמה ושחררתי עובד לאחר שסיים"></textarea>
+      <button class="save section-save" type="button" onclick="saveMiddayReport()">שמור בדיקת אמצע יום ✅</button>
+      <div id="middaySaveHint" class="save-hint"></div>
     </div>
 
     <div class="subcard">
@@ -172,7 +176,7 @@
       <textarea id="tomorrowChange" placeholder="לדוגמה: להכניס מגש אחד פחות ולבדוק שוב בשעה 13:00"></textarea>
     </div>
 
-    <button class="save" onclick="saveDailyReport()">שמור דוח יומי והיסטוריה ✅</button>
+    <button class="save" onclick="saveDailyReport()">שמור דיווח סוף יום והיסטוריה ✅</button>
     <div id="dailySaveHint" class="save-hint"></div>
 
     <details class="history-panel">
