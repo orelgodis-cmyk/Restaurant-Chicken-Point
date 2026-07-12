@@ -40,8 +40,7 @@ const state = {
 
 let employeeRowCounter = 0;
 let editingDailyReportId = "";
-let currentDailyReportId = "";
-let dailyFormLoadedDate = "";
+let initialDailyLoaded = false;
 const resettingTaskIds = new Set();
 const products = [
   {key:"potato", name:"תפוח אדמה"},
@@ -406,213 +405,198 @@ function collectEmployees(){
   }).filter(e => e.name || e.plannedOut || e.actualOut);
 }
 
-function collectOpening(){
-  const tastes = [1,2,3].map(i => ({
-    product: val(`tasteProduct${i}`), status: val(`tasteStatus${i}`), note: val(`tasteNote${i}`)
-  })).filter(t => t.product || t.note);
-  return {
-    fridgeTour: checked("fridgeTour"), oldStock: val("oldStock"), freshnessStatus: val("freshnessStatus"),
-    abnormalProduct: val("abnormalProduct"), shortage: val("shortage"), tastes
-  };
-}
-
-function collectMidday(){
-  return {
-    clean: val("midClean"), moreFood: val("midMoreFood"), prep: val("midPrep"),
-    actualLoad: val("actualLoad"), decision: val("midDecision")
-  };
-}
-
-function collectEndDay(){
-  return {
-    leftovers: val("endLeftovers"), wasteProduct: val("wasteProduct"), wasteQuantity: num(val("wasteQuantity")),
-    wasteUnit: val("wasteUnit"), wasteReason: val("wasteReason"), newIssueSummary: val("newIssueSummary"),
-    tomorrowChange: val("tomorrowChange")
-  };
-}
-
-function reportForDate(date){
-  if (currentDailyReportId){
-    const current = state.daily.find(r => r.id === currentDailyReportId && r.date === date);
-    if (current) return current;
-  }
-  return sorted(state.daily.filter(r => r.date === date))[0] || null;
-}
-
-async function upsertDailySection(date, fields){
-  const existing = reportForDate(date);
-  const nowText = new Date().toLocaleString("he-IL");
-  if (existing){
-    currentDailyReportId = existing.id;
-    await updateDoc(doc(db, "managerDailyReports", existing.id), {
-      ...fields, updatedAt:serverTimestamp(), updatedAtText:nowText
-    });
-    return existing.id;
-  }
-  const saved = await addDoc(cols.daily, {
-    date, opening:{}, goals:[], employees:[], midday:{}, endDay:{},
-    ...fields, createdAt:serverTimestamp(), createdAtText:nowText,
-    updatedAt:serverTimestamp(), updatedAtText:nowText
-  });
-  currentDailyReportId = saved.id;
-  return saved.id;
-}
-
-window.saveMorningReport = async () => {
-  const date = val("dailyDate") || todayLocal();
-  try {
-    await upsertDailySection(date, {
-      opening:collectOpening(),
-      goals:[val("goal1"), val("goal2"), val("goal3")],
-      openingSaved:true,
-      openingSavedAt:serverTimestamp(),
-      openingSavedAtText:new Date().toLocaleString("he-IL")
-    });
-    $("morningSaveHint").textContent = `דיווח הבוקר של ${heDate(date)} נשמר בענן ובהיסטוריה.`;
-    toast("דיווח הבוקר נשמר ✅");
-  } catch (error){
-    console.error(error);
-    alert("לא הצלחתי לשמור את דיווח הבוקר. בדוק חיבור לענן ונסה שוב.");
-  }
-};
-
-window.saveMiddayReport = async () => {
-  const date = val("dailyDate") || todayLocal();
-  try {
-    await upsertDailySection(date, {
-      midday:collectMidday(),
-      middaySaved:true,
-      middaySavedAt:serverTimestamp(),
-      middaySavedAtText:new Date().toLocaleString("he-IL")
-    });
-    $("middaySaveHint").textContent = `בדיקת אמצע היום של ${heDate(date)} נשמרה בענן ובהיסטוריה.`;
-    toast("בדיקת אמצע היום נשמרה ✅");
-  } catch (error){
-    console.error(error);
-    alert("לא הצלחתי לשמור את בדיקת אמצע היום. בדוק חיבור לענן ונסה שוב.");
-  }
-};
-
-function setSelectValue(id, value, fallback=""){
-  const el=$(id);
-  if (!el) return;
-  const desired=value || fallback;
-  if ([...el.options].some(o => o.value === desired || o.text === desired)) el.value=desired;
-}
-
-function resetDailyFormFields(){
+function clearTodayForm(){
   ["oldStock","abnormalProduct","shortage","goal1","goal2","goal3","midDecision","endLeftovers","wasteProduct","wasteQuantity","wasteReason","newIssueSummary","tomorrowChange"].forEach(id => { if ($(id)) $(id).value = ""; });
   $("fridgeTour").checked = false;
-  setSelectValue("freshnessStatus","הכול טרי ותקין");
-  setSelectValue("midClean","כן");
-  setSelectValue("midMoreFood","לא");
-  setSelectValue("midPrep","להמשיך כרגיל");
-  setSelectValue("actualLoad","רגיל");
-  setSelectValue("wasteUnit","לא נזרק");
   [1,2,3].forEach(i => { $("tasteProduct"+i).value=""; $("tasteNote"+i).value=""; $("tasteStatus"+i).value="טוב וטרי"; });
   $("employeeRows").innerHTML = "";
   window.addEmployeeRow();
   window.addEmployeeRow();
-  if ($("morningSaveHint")) $("morningSaveHint").textContent="";
-  if ($("middaySaveHint")) $("middaySaveHint").textContent="";
-  if ($("dailySaveHint")) $("dailySaveHint").textContent="";
 }
 
-function loadDailyReportForDate(force=false){
-  const date=val("dailyDate") || todayLocal();
-  if (!force && dailyFormLoadedDate === date) return;
-  dailyFormLoadedDate=date;
-  const r=reportForDate(date);
-  if (!r){
-    currentDailyReportId="";
-    resetDailyFormFields();
-    return;
+function getDailyReportForDate(date){
+  return sorted(state.daily.filter(r => r.date === date))[0] || null;
+}
+
+function collectOpeningData(){
+  const tastes = [1,2,3].map(i => ({
+    product: val(`tasteProduct${i}`), status: val(`tasteStatus${i}`), note: val(`tasteNote${i}`)
+  })).filter(t => t.product || t.note);
+  return {
+    fridgeTour: checked("fridgeTour"),
+    oldStock: val("oldStock"),
+    freshnessStatus: val("freshnessStatus"),
+    abnormalProduct: val("abnormalProduct"),
+    shortage: val("shortage"),
+    tastes
+  };
+}
+
+function collectGoals(){
+  return [val("goal1"), val("goal2"), val("goal3")];
+}
+
+function collectMiddayData(){
+  return {
+    clean: val("midClean"),
+    moreFood: val("midMoreFood"),
+    prep: val("midPrep"),
+    actualLoad: val("actualLoad"),
+    decision: val("midDecision")
+  };
+}
+
+function collectEndDayData(){
+  return {
+    leftovers: val("endLeftovers"),
+    wasteProduct: val("wasteProduct"),
+    wasteQuantity: num(val("wasteQuantity")),
+    wasteUnit: val("wasteUnit"),
+    wasteReason: val("wasteReason"),
+    newIssueSummary: val("newIssueSummary"),
+    tomorrowChange: val("tomorrowChange")
+  };
+}
+
+async function syncEmployeeReports(reportId, date, employees){
+  const oldRows = state.employees.filter(e => e.sourceDailyReportId === reportId);
+  for (const row of oldRows){
+    await deleteDoc(doc(db, "employeeReports", row.id));
   }
-  currentDailyReportId=r.id;
-  const opening=r.opening || {};
-  $("fridgeTour").checked=Boolean(opening.fridgeTour);
-  $("oldStock").value=opening.oldStock || "";
-  setSelectValue("freshnessStatus", opening.freshnessStatus, "הכול טרי ותקין");
-  $("abnormalProduct").value=opening.abnormalProduct || "";
-  $("shortage").value=opening.shortage || "";
-  [1,2,3].forEach((i,index) => {
-    const t=(opening.tastes || [])[index] || {};
-    $("tasteProduct"+i).value=t.product || "";
-    setSelectValue("tasteStatus"+i,t.status,"טוב וטרי");
-    $("tasteNote"+i).value=t.note || "";
-  });
-  [1,2,3].forEach((i,index) => { $("goal"+i).value=(r.goals || [])[index] || ""; });
-  const mid=r.midday || {};
-  setSelectValue("midClean",mid.clean,"כן");
-  setSelectValue("midMoreFood",mid.moreFood,"לא");
-  setSelectValue("midPrep",mid.prep,"להמשיך כרגיל");
-  setSelectValue("actualLoad",mid.actualLoad,"רגיל");
-  $("midDecision").value=mid.decision || "";
-  const end=r.endDay || {};
-  $("endLeftovers").value=end.leftovers || "";
-  $("wasteProduct").value=end.wasteProduct || "";
-  $("wasteQuantity").value=end.wasteQuantity || "";
-  setSelectValue("wasteUnit",end.wasteUnit,"לא נזרק");
-  $("wasteReason").value=end.wasteReason || "";
-  $("newIssueSummary").value=end.newIssueSummary || "";
-  $("tomorrowChange").value=end.tomorrowChange || "";
-  $("employeeRows").innerHTML="";
-  (r.employees || []).forEach(e => {
+  for (const employee of employees){
+    if (!employee.name) continue;
+    await addDoc(cols.employees, {
+      ...employee,
+      delayStatus: employee.actualOut
+        ? (employee.delayMinutes > 15 ? "🔴 חריגה מעל 15 דקות" : employee.delayMinutes > 0 ? "🟡 חריגה עד 15 דקות" : "🟢 סיים בזמן")
+        : "🟡 ממתין לעדכון",
+      delayReason: employee.reason,
+      note: "נשמר מתוך הדוח היומי החדש",
+      date,
+      dateText: heDate(date),
+      sourceDailyReportId: reportId,
+      createdAt: serverTimestamp()
+    });
+  }
+}
+
+async function saveDailySection(section){
+  const date = val("dailyDate") || todayLocal();
+  const existing = getDailyReportForDate(date);
+  const nowText = new Date().toLocaleString("he-IL");
+  const updates = {date, updatedAt: serverTimestamp(), updatedAtText: nowText};
+
+  if (section === "morning"){
+    updates.opening = collectOpeningData();
+    updates.goals = collectGoals();
+    updates.morningSavedAt = serverTimestamp();
+    updates.morningSavedAtText = nowText;
+  }
+  if (section === "midday"){
+    updates.midday = collectMiddayData();
+    updates.middaySavedAt = serverTimestamp();
+    updates.middaySavedAtText = nowText;
+  }
+  if (section === "end"){
+    updates.employees = collectEmployees();
+    updates.endDay = collectEndDayData();
+    updates.endSavedAt = serverTimestamp();
+    updates.endSavedAtText = nowText;
+  }
+
+  try {
+    let reportId = existing?.id || "";
+    if (existing){
+      await updateDoc(doc(db, "managerDailyReports", existing.id), updates);
+    } else {
+      const saved = await addDoc(cols.daily, {
+        date,
+        opening: section === "morning" ? updates.opening : {},
+        goals: section === "morning" ? updates.goals : [],
+        midday: section === "midday" ? updates.midday : {},
+        employees: section === "end" ? updates.employees : [],
+        endDay: section === "end" ? updates.endDay : {},
+        ...(section === "morning" ? {morningSavedAt:serverTimestamp(), morningSavedAtText:nowText} : {}),
+        ...(section === "midday" ? {middaySavedAt:serverTimestamp(), middaySavedAtText:nowText} : {}),
+        ...(section === "end" ? {endSavedAt:serverTimestamp(), endSavedAtText:nowText} : {}),
+        createdAt: serverTimestamp(),
+        createdAtText: nowText
+      });
+      reportId = saved.id;
+    }
+
+    if (section === "end"){
+      await syncEmployeeReports(reportId, date, updates.employees || []);
+    }
+
+    const label = section === "morning" ? "דיווח הבוקר" : section === "midday" ? "בדיקת אמצע היום" : "דיווח סוף היום";
+    $("dailySaveHint").textContent = `${label} של ${heDate(date)} נשמר בענן ובהיסטוריה.`;
+    toast(`${label} נשמר ✅`);
+  } catch (error){
+    console.error(error);
+    alert("לא הצלחתי לשמור. בדוק שהאפליקציה מחוברת לענן ונסה שוב.");
+  }
+}
+
+window.saveMorningReport = () => saveDailySection("morning");
+window.saveMiddayReport = () => saveDailySection("midday");
+window.saveDailyReport = () => saveDailySection("end");
+
+function setEmployeeRows(employees = []){
+  $("employeeRows").innerHTML = "";
+  employeeRowCounter = 0;
+  const rows = employees.length ? employees : [{},{}];
+  rows.forEach(employee => {
     window.addEmployeeRow();
-    const row=$("employeeRows").lastElementChild;
+    const row = $("employeeRows").lastElementChild;
+    if (!row) return;
     ["name","inTime","plannedOut","actualOut","reason"].forEach(field => {
-      const input=row.querySelector(`[data-field="${field}"]`);
-      if (input) input.value=e[field] || "";
+      const input = row.querySelector(`[data-field="${field}"]`);
+      if (input) input.value = employee[field] || "";
     });
     updateEmployeeCalculation(row);
   });
-  if (!(r.employees || []).length){ window.addEmployeeRow(); window.addEmployeeRow(); }
-  if ($("morningSaveHint") && r.openingSaved) $("morningSaveHint").textContent=`דיווח הבוקר נשמר${r.openingSavedAtText?` ב־${r.openingSavedAtText}`:""}.`;
-  if ($("middaySaveHint") && r.middaySaved) $("middaySaveHint").textContent=`בדיקת אמצע היום נשמרה${r.middaySavedAtText?` ב־${r.middaySavedAtText}`:""}.`;
-  if ($("dailySaveHint") && r.endDaySaved) $("dailySaveHint").textContent=`דיווח סוף היום נשמר${r.endDaySavedAtText?` ב־${r.endDaySavedAtText}`:""}.`;
 }
 
-window.saveDailyReport = async () => {
-  const date = val("dailyDate") || todayLocal();
-  const employees = collectEmployees();
-  try {
-    const reportId = await upsertDailySection(date, {
-      opening:collectOpening(),
-      goals:[val("goal1"), val("goal2"), val("goal3")],
-      midday:collectMidday(),
-      employees,
-      endDay:collectEndDay(),
-      openingSaved:true,
-      middaySaved:true,
-      endDaySaved:true,
-      endDaySavedAt:serverTimestamp(),
-      endDaySavedAtText:new Date().toLocaleString("he-IL")
-    });
-    const linked = state.employees.filter(e => e.sourceDailyReportId === reportId);
-    for (const employee of employees){
-      if (!employee.name) continue;
-      const existing=linked.find(e => String(e.name || "").trim() === String(employee.name || "").trim());
-      const employeeData={
-        ...employee,
-        delayStatus: !employee.actualOut ? "🟡 ממתין לעדכון" : employee.delayMinutes > 15 ? "🔴 חריגה מעל 15 דקות" : employee.delayMinutes > 0 ? "🟡 חריגה עד 15 דקות" : "🟢 סיים בזמן",
-        delayReason:employee.reason,
-        note:"נשמר מתוך הדוח היומי",
-        date,
-        dateText:heDate(date),
-        sourceDailyReportId:reportId,
-        updatedAt:serverTimestamp(),
-        updatedAtText:new Date().toLocaleString("he-IL")
-      };
-      if (existing) await updateDoc(doc(db,"employeeReports",existing.id),employeeData);
-      else await addDoc(cols.employees,{...employeeData,createdAt:serverTimestamp()});
-    }
-    $("dailySaveHint").textContent = `דיווח סוף היום של ${heDate(date)} נשמר בענן ובהיסטוריה.`;
-    toast("דיווח סוף היום נשמר ✅");
-  } catch (error){
-    console.error(error);
-    alert("לא הצלחתי לשמור את הדוח. בדוק שהאפליקציה מחוברת לענן ונסה שוב.");
-  }
-};
+function loadDailyReportIntoForm(date){
+  const report = getDailyReportForDate(date);
+  const opening = report?.opening || {};
+  $("fridgeTour").checked = Boolean(opening.fridgeTour);
+  $("oldStock").value = opening.oldStock || "";
+  $("freshnessStatus").value = opening.freshnessStatus || "הכול טרי ותקין";
+  $("abnormalProduct").value = opening.abnormalProduct || "";
+  $("shortage").value = opening.shortage || "";
+  const tastes = opening.tastes || [];
+  [1,2,3].forEach((i, index) => {
+    const taste = tastes[index] || {};
+    $("tasteProduct"+i).value = taste.product || "";
+    $("tasteStatus"+i).value = taste.status || "טוב וטרי";
+    $("tasteNote"+i).value = taste.note || "";
+  });
+  const goals = report?.goals || [];
+  [1,2,3].forEach((i,index) => $("goal"+i).value = goals[index] || "");
+
+  const midday = report?.midday || {};
+  $("midClean").value = midday.clean || "כן";
+  $("midMoreFood").value = midday.moreFood || "לא";
+  $("midPrep").value = midday.prep || "להמשיך כרגיל";
+  $("actualLoad").value = midday.actualLoad || "רגיל";
+  $("midDecision").value = midday.decision || "";
+
+  const endDay = report?.endDay || {};
+  $("endLeftovers").value = endDay.leftovers || "";
+  $("wasteProduct").value = endDay.wasteProduct || "";
+  $("wasteQuantity").value = endDay.wasteQuantity || "";
+  $("wasteUnit").value = endDay.wasteUnit || "לא נזרק";
+  $("wasteReason").value = endDay.wasteReason || "";
+  $("newIssueSummary").value = endDay.newIssueSummary || "";
+  $("tomorrowChange").value = endDay.tomorrowChange || "";
+  setEmployeeRows(report?.employees || []);
+
+  $("dailySaveHint").textContent = report
+    ? `נטען הדוח של ${heDate(date)}. אפשר להמשיך ולעדכן כל חלק בנפרד.`
+    : `אין עדיין דוח שמור ל־${heDate(date)}.`;
+}
 
 async function compressImage(file){
   if (!file) return "";
@@ -776,9 +760,8 @@ function dailyCard(r){
     return `${esc(e.name || "עובד")}: ${esc(e.plannedOut || "-")}→${actual} ${e.actualOut && num(e.delayMinutes)>0?`(+${num(e.delayMinutes)} דק׳)`:""}${e.reason?` — ${esc(e.reason)}`:""}`;
   }).join("<br>") || "לא נרשמו עובדים";
   const goals = (r.goals || []).filter(Boolean).map(g => `• ${esc(g)}`).join("<br>") || "לא נרשמו יעדים";
-  const saveStatus = [r.openingSaved?"בוקר ✓":"בוקר —", r.middaySaved?"אמצע ✓":"אמצע —", r.endDaySaved?"סוף ✓":"סוף —"].map(x=>`<span class="badge ${x.includes("✓")?"green":"gray"}">${x}</span>`).join(" ");
   return `<div class="item">
-    <b>${heDate(r.date)}</b> <span class="badge">${esc(r.midday?.actualLoad || r.quantities?.expectedLoad || "")}</span> ${saveStatus}<br>
+    <b>${heDate(r.date)}</b> <span class="badge">${esc(r.midday?.actualLoad || r.quantities?.expectedLoad || "")}</span><br>
     <b>מקררים:</b> ${r.opening?.fridgeTour ? "בוצע" : "לא סומן"} | <b>טריות:</b> ${esc(r.opening?.freshnessStatus || "-")}<br>
     <b>סחורה ישנה:</b> ${esc(r.opening?.oldStock || "-")}<br>
     <b>טעימות:</b> ${tastes}<br>
@@ -1000,7 +983,10 @@ function listenCollection(collectionRef, stateKey, taskType = ""){
     state[stateKey] = snapshot.docs.map(d => ({id:d.id, ...d.data()}));
     if (taskType) resetDueTasks(taskType, state[stateKey]);
     renderAll();
-    if (stateKey === "daily") loadDailyReportForDate(true);
+    if (stateKey === "daily" && !initialDailyLoaded){
+      initialDailyLoaded = true;
+      loadDailyReportIntoForm(val("dailyDate") || todayLocal());
+    }
   }, error => {
     console.error(`Listener error for ${stateKey}`, error);
     setCloud("שגיאת חיבור לענן ⚠️", false);
@@ -1011,12 +997,12 @@ function init(){
   renderTasteRows();
   renderFoodProducts();
   $("dailyDate").value = todayLocal();
-  $("dailyDate").addEventListener("change", () => { dailyFormLoadedDate=""; loadDailyReportForDate(true); });
   $("foodDate").value = todayLocal();
   $("issueDate").value = todayLocal();
   $("issueFollowUp").value = todayLocal();
   window.addEmployeeRow();
   window.addEmployeeRow();
+  $("dailyDate").addEventListener("change", () => loadDailyReportIntoForm(val("dailyDate") || todayLocal()));
   listenCollection(cols.daily, "daily");
   listenCollection(cols.issues, "issues");
   listenCollection(cols.weekly, "weekly");

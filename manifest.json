@@ -1,7 +1,7 @@
 {
   "name": "Chicken Point Management",
   "short_name": "Chicken Point",
-  "start_url": "./index.html",
+  "start_url": "./index.html?v=43",
   "display": "standalone",
   "background_color": "#f3f5f9",
   "theme_color": "#111827",

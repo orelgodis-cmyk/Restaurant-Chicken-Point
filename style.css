@@ -36,6 +36,4 @@ button{font-family:inherit;cursor:pointer}.save,.secondary,.danger,.small{border
 
 .modal{position:fixed;inset:0;background:#111827aa;display:grid;place-items:center;padding:16px;z-index:200}.modal.hidden{display:none}.modal-card{background:#fff;width:min(760px,100%);max-height:90vh;overflow:auto;border-radius:22px;padding:18px;box-shadow:0 20px 60px #0006}.employee-edit-row{background:#f8fafc;border:1px solid var(--line);border-radius:15px;padding:12px;margin-top:10px}.employee-edit-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px}.employee-edit-row .calculated{margin-top:8px}.pending-text{color:#92400e;font-weight:700}.updated-note{display:block;color:#166534;font-size:12px;margin-top:6px}@media(max-width:600px){.employee-edit-grid{grid-template-columns:1fr 1fr}.modal{padding:8px}.modal-card{border-radius:17px;padding:14px}}
 
-.section-save{margin-top:18px;box-shadow:0 5px 14px #16a34a2b;position:relative;z-index:1}
-.subcard .save-hint:not(:empty){background:#f0fdf4;border:1px solid #bbf7d0;border-radius:11px;padding:8px;margin-top:9px}
-@media(max-width:600px){.section-save{font-size:18px;padding:16px;position:sticky;bottom:8px}}
+.section-save{margin-top:6px}.section-save-hint{text-align:center;margin:6px 0 16px}
