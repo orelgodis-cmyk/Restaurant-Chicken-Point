@@ -14,7 +14,7 @@
     <div class="logo">🍗</div>
     <div>
       <h1>Chicken Point</h1>
-      <p>שיטת העבודה הניהולית של אוראל · V4.3</p>
+      <p>שיטת העבודה הניהולית של אוראל · V4.4</p>
     </div>
   </div>
   <div id="cloudStatus" class="cloud">מתחבר לענן...</div>
@@ -42,6 +42,7 @@
     <button onclick="go('today')">🏠 היום שלי</button>
     <button onclick="go('issue')">🚨 דיווח בעיה</button>
     <button onclick="go('trackers')">🔎 מעקבים פתוחים</button>
+    <button class="green-bowl-nav" onclick="go('greenBowl')">🥗 מעקב גרין בול</button>
     <button onclick="go('weekly')">📊 דוח שבועי</button>
   </nav>
 
@@ -270,6 +271,68 @@
       <summary>✅ היסטוריית בעיות שנסגרו</summary>
       <div id="closedIssues"></div>
     </details>
+  </section>
+
+
+  <section class="card green-bowl-card" id="greenBowl">
+    <div class="green-bowl-hero">
+      <div>
+        <h2>🥗 מעקב גרין בול</h2>
+        <p>מעקב יומי קצר לכמויות, דיוק, פחת וחוסרים — נשמר אוטומטית בענן ובהיסטוריה.</p>
+      </div>
+      <span class="gb-time">⏱️ מילוי של כ־2 דקות</span>
+    </div>
+
+    <div class="green-bowl-layout">
+      <div class="green-bowl-form">
+        <div class="two-grid">
+          <div><label>תאריך</label><input id="greenBowlDate" type="date"></div>
+          <div><label>ציון יומי 1–10</label><input id="greenBowlScore" type="number" min="1" max="10" step="1" placeholder="לדוגמה: 9"></div>
+        </div>
+
+        <div class="subcard gb-accurate-box">
+          <h3>✅ מה היה מדויק היום?</h3>
+          <div class="gb-check-grid">
+            <label class="gb-check"><input id="gb_bread" type="checkbox"> לחם</label>
+            <label class="gb-check"><input id="gb_vegetables" type="checkbox"> ירקות</label>
+            <label class="gb-check"><input id="gb_proteins" type="checkbox"> חלבונים</label>
+            <label class="gb-check"><input id="gb_salads" type="checkbox"> סלטים</label>
+            <label class="gb-check"><input id="gb_sauces" type="checkbox"> רטבים ותוספות</label>
+          </div>
+          <input id="greenBowlAccurateOther" placeholder="פירוט נוסף: קולורבי, סלק, כרוב לבן, כרוב סגול...">
+        </div>
+
+        <label>🔧 מה צריך לשנות למחר?</label>
+        <textarea id="greenBowlTomorrowChange" placeholder="לדוגמה: להפחית מעט לחם; להשאיר את שאר הכמויות ללא שינוי"></textarea>
+
+        <div class="two-grid">
+          <div>
+            <label>🗑️ האם היה פחת או זריקות?</label>
+            <select id="greenBowlWaste"><option>לא</option><option>כן</option></select>
+            <textarea id="greenBowlWasteDetail" class="mini-textarea" placeholder="אם כן — מה וכמה?"></textarea>
+          </div>
+          <div>
+            <label>❌ האם היה חוסר במוצר?</label>
+            <select id="greenBowlShortage"><option>לא</option><option>כן</option></select>
+            <textarea id="greenBowlShortageDetail" class="mini-textarea" placeholder="אם כן — איזה מוצר וכמה?"></textarea>
+          </div>
+        </div>
+
+        <label>📝 סיכום מנהל</label>
+        <textarea id="greenBowlSummary" placeholder="סיכום קצר: מה עבד טוב, מה דורש תשומת לב ומה ממשיכים לבדוק"></textarea>
+        <button class="save green-bowl-save" onclick="saveGreenBowlReport()">💾 שמור מעקב גרין בול</button>
+        <div id="greenBowlSaveHint" class="save-hint"></div>
+      </div>
+
+      <aside class="green-bowl-side">
+        <h3>📊 תמונת מצב</h3>
+        <div id="greenBowlStats" class="gb-stats"></div>
+        <details class="history-panel" open>
+          <summary>📚 היסטוריית מעקב</summary>
+          <div id="greenBowlHistory"></div>
+        </details>
+      </aside>
+    </div>
   </section>
 
   <section class="card" id="weekly">

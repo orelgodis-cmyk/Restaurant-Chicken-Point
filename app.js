@@ -29,13 +29,14 @@ const cols = {
   legacyMonthlyTasks: col("monthlyTasks"),
   legacyOrelTasks: col("orelTasks"),
   improvements: col("improvements"),
-  taskHistory: col("taskHistory")
+  taskHistory: col("taskHistory"),
+  greenBowl: col("greenBowlReports")
 };
 
 const state = {
   daily: [], issues: [], weekly: [], employees: [], legacyFood: [],
   legacyDailyTasks: [], legacyWeeklyTasks: [], legacyMonthlyTasks: [], legacyOrelTasks: [],
-  improvements: [], taskHistory: []
+  improvements: [], taskHistory: [], greenBowl: []
 };
 
 let employeeRowCounter = 0;
@@ -640,6 +641,8 @@ window.saveIssue = async () => {
     });
     ["issueTitle","issueDescription","issueQuantity","issueUnit","issueOwner","issueCause","issueSolution","issuePhoto"].forEach(id => { if ($(id)) $(id).value=""; });
     $("issueFollowUp").value = todayLocal();
+  $("greenBowlDate").value = todayLocal();
+  $("greenBowlDate").addEventListener("change", () => loadGreenBowlIntoForm(val("greenBowlDate") || todayLocal()));
     toast("הבעיה נפתחה ונשמרה במעקב 🚨");
     go("trackers");
   } catch (error){
@@ -966,6 +969,94 @@ function renderLegacyHistory(){
   $("legacyHistory").innerHTML = `<h3>דוחות אוכל קודמים</h3>${foods || '<p class="hint">אין דוחות אוכל קודמים.</p>'}<h3>דיווחי עובדים קודמים</h3>${oldEmployees || '<p class="hint">אין דיווחי עובדים קודמים.</p>'}`;
 }
 
+
+const greenBowlAccurateItems = [
+  {key:"bread", label:"לחם"},
+  {key:"vegetables", label:"ירקות"},
+  {key:"proteins", label:"חלבונים"},
+  {key:"salads", label:"סלטים"},
+  {key:"sauces", label:"רטבים ותוספות"}
+];
+
+function greenBowlScoreLabel(score){
+  const n = num(score);
+  if (n >= 9) return "מצוין";
+  if (n >= 7) return "טוב";
+  if (n >= 5) return "דורש שיפור";
+  return "בעייתי";
+}
+
+function collectGreenBowlAccurate(){
+  return greenBowlAccurateItems
+    .filter(item => checked(`gb_${item.key}`))
+    .map(item => item.label);
+}
+
+window.saveGreenBowlReport = async () => {
+  const date = val("greenBowlDate") || todayLocal();
+  const score = num(val("greenBowlScore"));
+  if (!score || score < 1 || score > 10) return alert("בחר ציון יומי בין 1 ל־10");
+  const data = {
+    date,
+    score,
+    scoreLabel: greenBowlScoreLabel(score),
+    accurate: collectGreenBowlAccurate(),
+    accurateOther: val("greenBowlAccurateOther"),
+    tomorrowChange: val("greenBowlTomorrowChange"),
+    waste: val("greenBowlWaste"),
+    wasteDetail: val("greenBowlWasteDetail"),
+    shortage: val("greenBowlShortage"),
+    shortageDetail: val("greenBowlShortageDetail"),
+    managerSummary: val("greenBowlSummary"),
+    updatedAt: serverTimestamp(),
+    updatedAtText: new Date().toLocaleString("he-IL")
+  };
+  try {
+    const existing = sorted(state.greenBowl.filter(r => r.date === date))[0];
+    if (existing) await updateDoc(doc(db, "greenBowlReports", existing.id), data);
+    else await addDoc(cols.greenBowl, {...data, createdAt:serverTimestamp(), createdAtText:new Date().toLocaleString("he-IL")});
+    $("greenBowlSaveHint").textContent = `המעקב של ${heDate(date)} נשמר בענן ובהיסטוריה.`;
+    toast("מעקב גרין בול נשמר ✅");
+  } catch (error){
+    console.error(error);
+    alert("לא הצלחתי לשמור את מעקב גרין בול. בדוק חיבור לענן ונסה שוב.");
+  }
+};
+
+function loadGreenBowlIntoForm(date){
+  const report = sorted(state.greenBowl.filter(r => r.date === date))[0];
+  greenBowlAccurateItems.forEach(item => { const el=$("gb_"+item.key); if(el) el.checked = Boolean(report?.accurate?.includes(item.label)); });
+  $("greenBowlScore").value = report?.score || "";
+  $("greenBowlAccurateOther").value = report?.accurateOther || "";
+  $("greenBowlTomorrowChange").value = report?.tomorrowChange || "";
+  $("greenBowlWaste").value = report?.waste || "לא";
+  $("greenBowlWasteDetail").value = report?.wasteDetail || "";
+  $("greenBowlShortage").value = report?.shortage || "לא";
+  $("greenBowlShortageDetail").value = report?.shortageDetail || "";
+  $("greenBowlSummary").value = report?.managerSummary || "";
+  $("greenBowlSaveHint").textContent = report ? `נטען מעקב שמור ל־${heDate(date)}. כל שמירה נוספת תעדכן אותו.` : "";
+}
+
+function renderGreenBowl(){
+  const reports = sorted(state.greenBowl);
+  const wrap = $("greenBowlHistory");
+  if (!wrap) return;
+  wrap.innerHTML = reports.slice(0,60).map(r => {
+    const accurate = [...(r.accurate || []), r.accurateOther].filter(Boolean).join(", ") || "לא צוין";
+    return `<div class="item green-bowl-history-item">
+      <div class="gb-history-head"><b>${heDate(r.date)}</b><span class="score-chip score-${num(r.score)}">${num(r.score)}/10 · ${esc(r.scoreLabel || greenBowlScoreLabel(r.score))}</span></div>
+      <b>מה היה מדויק:</b> ${esc(accurate)}<br>
+      <b>מה משנים למחר:</b> ${esc(r.tomorrowChange || "אין שינוי")}<br>
+      <b>פחת:</b> ${esc(r.waste || "לא")} ${r.wasteDetail?`— ${esc(r.wasteDetail)}`:""}<br>
+      <b>חוסר:</b> ${esc(r.shortage || "לא")} ${r.shortageDetail?`— ${esc(r.shortageDetail)}`:""}<br>
+      <b>סיכום מנהל:</b> ${esc(r.managerSummary || "-")}
+    </div>`;
+  }).join("") || `<p class="hint">עדיין אין דיווחי גרין בול.</p>`;
+  const last7 = reports.slice(0,7);
+  const avg = last7.length ? (last7.reduce((sum,r)=>sum+num(r.score),0)/last7.length).toFixed(1) : "-";
+  $("greenBowlStats").innerHTML = `<div class="metric"><b>${reports.length}</b><span>דיווחים שנשמרו</span></div><div class="metric"><b>${avg}</b><span>ממוצע 7 דיווחים</span></div><div class="metric"><b>${last7.filter(r=>num(r.score)>=9).length}</b><span>ימים מצוינים</span></div>`;
+}
+
 function renderAll(){
   renderDashboard();
   renderDailyHistory();
@@ -976,6 +1067,7 @@ function renderAll(){
   renderFoodModule();
   renderImprovements();
   renderLegacyHistory();
+  renderGreenBowl();
 }
 
 function listenCollection(collectionRef, stateKey, taskType = ""){
@@ -983,6 +1075,7 @@ function listenCollection(collectionRef, stateKey, taskType = ""){
     state[stateKey] = snapshot.docs.map(d => ({id:d.id, ...d.data()}));
     if (taskType) resetDueTasks(taskType, state[stateKey]);
     renderAll();
+    if (stateKey === "greenBowl") loadGreenBowlIntoForm(val("greenBowlDate") || todayLocal());
     if (stateKey === "daily" && !initialDailyLoaded){
       initialDailyLoaded = true;
       loadDailyReportIntoForm(val("dailyDate") || todayLocal());
@@ -1000,6 +1093,8 @@ function init(){
   $("foodDate").value = todayLocal();
   $("issueDate").value = todayLocal();
   $("issueFollowUp").value = todayLocal();
+  $("greenBowlDate").value = todayLocal();
+  $("greenBowlDate").addEventListener("change", () => loadGreenBowlIntoForm(val("greenBowlDate") || todayLocal()));
   window.addEmployeeRow();
   window.addEmployeeRow();
   $("dailyDate").addEventListener("change", () => loadDailyReportIntoForm(val("dailyDate") || todayLocal()));
@@ -1014,6 +1109,7 @@ function init(){
   listenCollection(cols.legacyOrelTasks, "legacyOrelTasks", "orel");
   listenCollection(cols.improvements, "improvements");
   listenCollection(cols.taskHistory, "taskHistory");
+  listenCollection(cols.greenBowl, "greenBowl");
   setCloud("מחובר לענן ✅", true);
 }
 
