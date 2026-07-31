@@ -14,7 +14,7 @@
     <div class="logo">🍗</div>
     <div>
       <h1>Chicken Point</h1>
-      <p>שיטת העבודה הניהולית של אוראל · V4.4</p>
+      <p>שיטת העבודה הניהולית של אוראל · V5.0</p>
     </div>
   </div>
   <div id="cloudStatus" class="cloud">מתחבר לענן...</div>
@@ -34,17 +34,44 @@
       <div><b id="openIssuesCount">0</b><span>מעקבים פתוחים</span></div>
       <div><b id="weekOvertime">0</b><span>דקות חריגה השבוע</span></div>
       <div><b id="resolvedWeek">0</b><span>בעיות שנסגרו השבוע</span></div>
+      <div><b id="dueRemindersCount">0</b><span>תזכורות להיום</span></div>
     </div>
     <div id="managerSummary" class="summary-box"></div>
   </section>
 
   <nav class="quick" aria-label="ניווט ראשי">
     <button onclick="go('today')">🏠 היום שלי</button>
+    <button onclick="go('personal')">👑 אישי אוראל</button>
+    <button onclick="go('historyCenter')">🔍 חיפוש בהיסטוריה</button>
+    <button onclick="go('greenBowl')">🥗 גרין בול</button>
+    <button onclick="go('suppliers')">🚚 ספקים</button>
     <button onclick="go('issue')">🚨 דיווח בעיה</button>
     <button onclick="go('trackers')">🔎 מעקבים פתוחים</button>
-    <button class="green-bowl-nav" onclick="go('greenBowl')">🥗 מעקב גרין בול</button>
     <button onclick="go('weekly')">📊 דוח שבועי</button>
   </nav>
+
+  <section class="card personal-card" id="personal">
+    <div class="section-title">
+      <div>
+        <h2>👑 אישי אוראל</h2>
+        <p class="hint">תזכורות פרטיות שלך בלבד. לכל תזכורת יש תאריך, שעה והיסטוריית ביצוע.</p>
+      </div>
+      <span id="personalBadge" class="step-badge">0 פתוחות</span>
+    </div>
+    <div class="reminder-form">
+      <div><label>מה להזכיר לי?</label><input id="reminderText" placeholder="לדוגמה: לשלוח לאלעד דוחות"></div>
+      <div><label>תאריך</label><input id="reminderDate" type="date"></div>
+      <div><label>שעה</label><input id="reminderTime" type="time"></div>
+      <div><label>תחום</label><select id="reminderCategory"><option>עבודה</option><option>אישי</option><option>בריאות</option><option>כספים</option><option>פגישה</option><option>אחר</option></select></div>
+    </div>
+    <label>הערה</label><input id="reminderNote" placeholder="פרטים קצרים, לא חובה">
+    <button class="save personal-save" onclick="addReminder()">הוסף תזכורת לאוראל ➕</button>
+    <div id="personalReminders" class="reminder-list"></div>
+    <details class="history-panel compact-history">
+      <summary>🕘 היסטוריית תזכורות שבוצעו</summary>
+      <div id="personalReminderHistory"></div>
+    </details>
+  </section>
 
   <section class="card" id="today">
     <div class="section-title">
@@ -225,6 +252,85 @@
     </details>
   </section>
 
+
+
+  <section class="card green-bowl-card" id="greenBowl">
+    <div class="section-title">
+      <div>
+        <h2>🥗 מעקב גרין בול</h2>
+        <p class="hint">דיווח קצר בסיום המשמרת כדי לראות אם הקיצוץ בכמויות מדויק ומה צריך לשנות מחר.</p>
+      </div>
+      <span id="greenBowlBadge" class="step-badge">0 דוחות</span>
+    </div>
+    <div class="three-grid">
+      <div><label>תאריך</label><input id="greenBowlDate" type="date"></div>
+      <div><label>מצב הכמויות</label><select id="greenBowlStatus"><option>הכול היה מדויק</option><option>נשאר מעט</option><option>נשאר הרבה</option><option>היה חסר</option></select></div>
+      <div><label>ציון היום</label><select id="greenBowlRating"><option>5 — מצוין</option><option>4 — טוב מאוד</option><option>3 — סביר</option><option>2 — דורש שינוי</option><option>1 — לא טוב</option></select></div>
+    </div>
+    <details class="plan-panel">
+      <summary>📏 תוכנית הכמויות שסיכמנו</summary>
+      <div class="plan-grid">
+        <label class="check-row"><input type="checkbox" data-gb-plan value="גזר, קולרבי וסלק — שליש גסטרו"> גזר, קולרבי וסלק — שליש גסטרו</label>
+        <label class="check-row"><input type="checkbox" data-gb-plan value="כרוב לבן וסגול — פחות 40%"> כרוב לבן וסגול — פחות 40%</label>
+        <label class="check-row"><input type="checkbox" data-gb-plan value="תפוח — פחות 25%"> תפוח — פחות 25%</label>
+        <label class="check-row"><input type="checkbox" data-gb-plan value="שרי וברוקולי — פחות 20%"> שרי וברוקולי — פחות 20%</label>
+        <label class="check-row"><input type="checkbox" data-gb-plan value="עגבנייה רגילה — פחות 25%"> עגבנייה רגילה — פחות 25%</label>
+        <label class="check-row"><input type="checkbox" data-gb-plan value="אורז לבן — 2 ליטר"> אורז לבן — 2 ליטר</label>
+        <label class="check-row"><input type="checkbox" data-gb-plan value="חסה — לא לשטוף הכול מראש"> חסה — לא לשטוף הכול מראש</label>
+        <label class="check-row"><input type="checkbox" data-gb-plan value="חזה עוף במלח גס ועוף עשבי תיבול — פחות 30%"> חזה עוף במלח גס ועוף עשבי תיבול — פחות 30%</label>
+      </div>
+    </details>
+    <label>מה נשאר / מה היה חסר?</label><textarea id="greenBowlLeftovers" placeholder="לדוגמה: לחם מעט, שאר הכמויות היו מדויקות"></textarea>
+    <label>מה ביצעתי היום?</label><textarea id="greenBowlActions" placeholder="שינויים בכמויות, עצירת הכנות, השלמות"></textarea>
+    <label>מה לשנות מחר?</label><textarea id="greenBowlTomorrow" placeholder="להגדיל / להקטין מוצר מסוים"></textarea>
+    <button class="save" onclick="saveGreenBowlReport()">שמור דוח גרין בול ✅</button>
+    <details class="history-panel" open>
+      <summary>📚 היסטוריית גרין בול</summary>
+      <div id="greenBowlHistory"></div>
+    </details>
+  </section>
+
+  <section class="card" id="suppliers">
+    <div class="section-title">
+      <div>
+        <h2>🚚 ספקים ומחירים</h2>
+        <p class="hint">רושמים כל מחיר חדש. שום מחיר קודם לא נדרס — הכול נשאר בהיסטוריה.</p>
+      </div>
+      <span id="supplierBadge" class="step-badge">0 רשומות</span>
+    </div>
+    <div class="three-grid">
+      <div><label>ספק</label><input id="supplierName" list="supplierNames" placeholder="שם הספק"><datalist id="supplierNames"><option value="קצב 1"><option value="קצב 2"><option value="קצב 3"><option value="קצב 4"><option value="קצב 5"><option value="סרדה"><option value="שיווק האור"><option value="עונות ישראל"><option value="לחמים"><option value="קוקה קולה"></datalist></div>
+      <div><label>מוצר</label><input id="supplierProduct" placeholder="לדוגמה: חזה עוף"></div>
+      <div><label>תאריך מחיר</label><input id="supplierDate" type="date"></div>
+    </div>
+    <div class="three-grid">
+      <div><label>מחיר</label><input id="supplierPrice" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div><label>יחידה</label><select id="supplierUnit"><option>לק״ג</option><option>ליחידה</option><option>לקרטון</option><option>לארגז</option><option>לחבילה</option><option>אחר</option></select></div>
+      <div><label>הערה</label><input id="supplierNote" placeholder="מבצע, איכות, שינוי מחיר"></div>
+    </div>
+    <button class="save" onclick="saveSupplierPrice()">שמור מחיר ספק והיסטוריה ✅</button>
+    <div class="search-line"><input id="supplierSearch" placeholder="🔍 חיפוש ספק או מוצר"><button class="secondary" onclick="renderSuppliers()">חפש</button></div>
+    <div id="supplierHistory"></div>
+  </section>
+
+  <section class="card history-center" id="historyCenter">
+    <div class="section-title">
+      <div>
+        <h2>🔍 מרכז היסטוריה וחיפוש</h2>
+        <p class="hint">כאן מחפשים הכול במקום אחד: משימות, שעות, אוכל, דוחות, תזכורות, בעיות, גרין בול וספקים.</p>
+      </div>
+      <span id="historyCountBadge" class="step-badge">0 תוצאות</span>
+    </div>
+    <div class="history-filters">
+      <input id="historySearch" placeholder="חיפוש חופשי: עובד, מוצר, משימה, הערה...">
+      <select id="historyType"><option value="all">הכול</option><option value="daily">דוחות יומיים</option><option value="employees">שעות עובדים</option><option value="tasks">משימות</option><option value="food">אוכל ופחת</option><option value="reminders">אישי אוראל</option><option value="issues">בעיות ומעקבים</option><option value="greenBowl">גרין בול</option><option value="suppliers">ספקים</option><option value="weekly">דוחות שבועיים</option><option value="audit">פעולות מערכת</option></select>
+      <input id="historyFrom" type="date" aria-label="מתאריך">
+      <input id="historyTo" type="date" aria-label="עד תאריך">
+      <button class="secondary" onclick="clearHistoryFilters()">נקה</button>
+    </div>
+    <div id="unifiedHistory"></div>
+  </section>
+
   <section class="card" id="issue">
     <div class="section-title">
       <div>
@@ -271,68 +377,6 @@
       <summary>✅ היסטוריית בעיות שנסגרו</summary>
       <div id="closedIssues"></div>
     </details>
-  </section>
-
-
-  <section class="card green-bowl-card" id="greenBowl">
-    <div class="green-bowl-hero">
-      <div>
-        <h2>🥗 מעקב גרין בול</h2>
-        <p>מעקב יומי קצר לכמויות, דיוק, פחת וחוסרים — נשמר אוטומטית בענן ובהיסטוריה.</p>
-      </div>
-      <span class="gb-time">⏱️ מילוי של כ־2 דקות</span>
-    </div>
-
-    <div class="green-bowl-layout">
-      <div class="green-bowl-form">
-        <div class="two-grid">
-          <div><label>תאריך</label><input id="greenBowlDate" type="date"></div>
-          <div><label>ציון יומי 1–10</label><input id="greenBowlScore" type="number" min="1" max="10" step="1" placeholder="לדוגמה: 9"></div>
-        </div>
-
-        <div class="subcard gb-accurate-box">
-          <h3>✅ מה היה מדויק היום?</h3>
-          <div class="gb-check-grid">
-            <label class="gb-check"><input id="gb_bread" type="checkbox"> לחם</label>
-            <label class="gb-check"><input id="gb_vegetables" type="checkbox"> ירקות</label>
-            <label class="gb-check"><input id="gb_proteins" type="checkbox"> חלבונים</label>
-            <label class="gb-check"><input id="gb_salads" type="checkbox"> סלטים</label>
-            <label class="gb-check"><input id="gb_sauces" type="checkbox"> רטבים ותוספות</label>
-          </div>
-          <input id="greenBowlAccurateOther" placeholder="פירוט נוסף: קולורבי, סלק, כרוב לבן, כרוב סגול...">
-        </div>
-
-        <label>🔧 מה צריך לשנות למחר?</label>
-        <textarea id="greenBowlTomorrowChange" placeholder="לדוגמה: להפחית מעט לחם; להשאיר את שאר הכמויות ללא שינוי"></textarea>
-
-        <div class="two-grid">
-          <div>
-            <label>🗑️ האם היה פחת או זריקות?</label>
-            <select id="greenBowlWaste"><option>לא</option><option>כן</option></select>
-            <textarea id="greenBowlWasteDetail" class="mini-textarea" placeholder="אם כן — מה וכמה?"></textarea>
-          </div>
-          <div>
-            <label>❌ האם היה חוסר במוצר?</label>
-            <select id="greenBowlShortage"><option>לא</option><option>כן</option></select>
-            <textarea id="greenBowlShortageDetail" class="mini-textarea" placeholder="אם כן — איזה מוצר וכמה?"></textarea>
-          </div>
-        </div>
-
-        <label>📝 סיכום מנהל</label>
-        <textarea id="greenBowlSummary" placeholder="סיכום קצר: מה עבד טוב, מה דורש תשומת לב ומה ממשיכים לבדוק"></textarea>
-        <button class="save green-bowl-save" onclick="saveGreenBowlReport()">💾 שמור מעקב גרין בול</button>
-        <div id="greenBowlSaveHint" class="save-hint"></div>
-      </div>
-
-      <aside class="green-bowl-side">
-        <h3>📊 תמונת מצב</h3>
-        <div id="greenBowlStats" class="gb-stats"></div>
-        <details class="history-panel" open>
-          <summary>📚 היסטוריית מעקב</summary>
-          <div id="greenBowlHistory"></div>
-        </details>
-      </aside>
-    </div>
   </section>
 
   <section class="card" id="weekly">
@@ -388,6 +432,6 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=50"></script>
 </body>
 </html>
