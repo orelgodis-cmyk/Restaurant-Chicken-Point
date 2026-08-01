@@ -2,436 +2,250 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111827">
-  <title>Chicken Point — מערכת ניהול</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Chicken Point — ניהול פשוט</title>
+  <link rel="manifest" href="manifest.json?v=61">
+  <link rel="stylesheet" href="style.css?v=61">
 </head>
 <body>
-<header>
+<header class="app-header">
   <div class="brand">
     <div class="logo">🍗</div>
     <div>
       <h1>Chicken Point</h1>
-      <p>שיטת העבודה הניהולית של אוראל · V5.0</p>
+      <p>הניהול של אוראל · פשוט ומסודר</p>
     </div>
   </div>
-  <div id="cloudStatus" class="cloud">מתחבר לענן...</div>
+  <div id="cloudStatus" class="cloud">מתחבר...</div>
 </header>
 
 <main>
-  <section class="card dashboard">
-    <div class="section-title">
-      <div>
-        <h2>תמונת מצב ניהולית</h2>
-        <p class="hint">כל מה שנשמר כאן נשאר בהיסטוריה ויופיע גם בנתונים השבועיים.</p>
-      </div>
+  <section id="homeView" class="view active home-view">
+    <div class="welcome">
       <span id="todayLabel" class="date-pill"></span>
+      <h2>מה צריך לנהל היום?</h2>
+      <p>לוחצים על ריבוע ורק אז נפתחים הפרטים.</p>
     </div>
-    <div class="stats">
-      <div><b id="dailyCount">0</b><span>דוחות יומיים</span></div>
-      <div><b id="openIssuesCount">0</b><span>מעקבים פתוחים</span></div>
-      <div><b id="weekOvertime">0</b><span>דקות חריגה השבוע</span></div>
-      <div><b id="resolvedWeek">0</b><span>בעיות שנסגרו השבוע</span></div>
-      <div><b id="dueRemindersCount">0</b><span>תזכורות להיום</span></div>
+
+    <button id="middayBanner" class="midday-banner" type="button" onclick="openView('foodView','middayCheck')">
+      <span class="midday-icon">🕛</span>
+      <span class="midday-copy">
+        <b>בדיקת 12:00</b>
+        <small id="middayBannerText">לבדוק אם להכניס עוד אוכל או לעצור הכנות</small>
+      </span>
+      <span class="arrow">←</span>
+    </button>
+
+    <div class="module-grid" aria-label="נושאי ניהול">
+      <button class="module-tile food-tile" type="button" onclick="openView('foodView')">
+        <span class="tile-icon">🍗</span>
+        <span class="tile-copy">
+          <b>מעקב אוכל</b>
+          <small>מצב האוכל ומה משנים למחר</small>
+        </span>
+        <span id="foodBadge" class="tile-badge">לא מולא היום</span>
+      </button>
+
+      <button class="module-tile green-tile" type="button" onclick="openView('greenView')">
+        <span class="tile-icon">🥗</span>
+        <span class="tile-copy">
+          <b>מעקב גרין בול</b>
+          <small>כמויות, פחת והחלטה למחר</small>
+        </span>
+        <span id="greenBadge" class="tile-badge">לא מולא היום</span>
+      </button>
+
+      <button class="module-tile task-tile" type="button" onclick="openView('tasksView')">
+        <span class="tile-icon">✅</span>
+        <span class="tile-copy">
+          <b>המשימות שלי</b>
+          <small>תזכורות ומשימות במקום אחד</small>
+        </span>
+        <span id="tasksBadge" class="tile-badge">0 פתוחות</span>
+      </button>
     </div>
-    <div id="managerSummary" class="summary-box"></div>
+
+    <div id="homeSummary" class="home-summary">טוען תמונת מצב...</div>
   </section>
 
-  <nav class="quick" aria-label="ניווט ראשי">
-    <button onclick="go('today')">🏠 היום שלי</button>
-    <button onclick="go('personal')">👑 אישי אוראל</button>
-    <button onclick="go('historyCenter')">🔍 חיפוש בהיסטוריה</button>
-    <button onclick="go('greenBowl')">🥗 גרין בול</button>
-    <button onclick="go('suppliers')">🚚 ספקים</button>
-    <button onclick="go('issue')">🚨 דיווח בעיה</button>
-    <button onclick="go('trackers')">🔎 מעקבים פתוחים</button>
-    <button onclick="go('weekly')">📊 דוח שבועי</button>
-  </nav>
-
-  <section class="card personal-card" id="personal">
-    <div class="section-title">
+  <section id="foodView" class="view module-view" aria-labelledby="foodTitle">
+    <div class="module-head">
+      <button class="back-btn" type="button" onclick="goHome()">→ חזרה</button>
       <div>
-        <h2>👑 אישי אוראל</h2>
-        <p class="hint">תזכורות פרטיות שלך בלבד. לכל תזכורת יש תאריך, שעה והיסטוריית ביצוע.</p>
+        <h2 id="foodTitle">🍗 מעקב אוכל</h2>
+        <p>מצב האוכל, כמה נשאר וכמה נזרק — נשמר בהיסטוריה.</p>
       </div>
-      <span id="personalBadge" class="step-badge">0 פתוחות</span>
-    </div>
-    <div class="reminder-form">
-      <div><label>מה להזכיר לי?</label><input id="reminderText" placeholder="לדוגמה: לשלוח לאלעד דוחות"></div>
-      <div><label>תאריך</label><input id="reminderDate" type="date"></div>
-      <div><label>שעה</label><input id="reminderTime" type="time"></div>
-      <div><label>תחום</label><select id="reminderCategory"><option>עבודה</option><option>אישי</option><option>בריאות</option><option>כספים</option><option>פגישה</option><option>אחר</option></select></div>
-    </div>
-    <label>הערה</label><input id="reminderNote" placeholder="פרטים קצרים, לא חובה">
-    <button class="save personal-save" onclick="addReminder()">הוסף תזכורת לאוראל ➕</button>
-    <div id="personalReminders" class="reminder-list"></div>
-    <details class="history-panel compact-history">
-      <summary>🕘 היסטוריית תזכורות שבוצעו</summary>
-      <div id="personalReminderHistory"></div>
-    </details>
-  </section>
-
-  <section class="card" id="today">
-    <div class="section-title">
-      <div>
-        <h2>🏠 היום שלי</h2>
-        <p class="hint">פתיחת יום, עובדים, אמצע יום וסיכום — הכול נשמר כדוח אחד בהיסטוריה.</p>
-      </div>
-      <span class="step-badge">דוח יומי</span>
     </div>
 
-    <label>תאריך</label>
-    <input id="dailyDate" type="date">
-
-    <div class="subcard task-center">
-      <div class="section-title compact">
-        <div>
-          <h3>📋 משימות קבועות ותזכורות</h3>
-          <p class="hint">יומיות, שבועיות וחודשיות חוזרות אוטומטית. כל סימון נשמר בהיסטוריה עם תאריך ושעה.</p>
-        </div>
-        <span id="taskProgressBadge" class="step-badge">0 פתוחות</span>
+    <div class="form-card" id="middayCheck">
+      <div class="form-title">
+        <h3>🕛 בדיקת מצב ב־12:00</h3>
+        <span id="middayState" class="status-chip">ממתין לבדיקה</span>
       </div>
-
-      <div class="task-grid">
-        <div class="task-column">
-          <h4>☀️ משימות יומיות</h4>
-          <div class="add-line"><input id="dailyTaskText" placeholder="משימה יומית חדשה"><button onclick="addTask('daily')">➕</button></div>
-          <div id="dailyTasks"></div>
-        </div>
-        <div class="task-column">
-          <h4>📅 משימות שבועיות</h4>
-          <div class="add-line"><input id="weeklyTaskText" placeholder="משימה שבועית חדשה"><button onclick="addTask('weekly')">➕</button></div>
-          <div id="weeklyTasks"></div>
-        </div>
-        <div class="task-column">
-          <h4>🗓️ משימות חודשיות</h4>
-          <div class="add-line"><input id="monthlyTaskText" placeholder="משימה חודשית חדשה"><button onclick="addTask('monthly')">➕</button></div>
-          <div id="monthlyTasks"></div>
-        </div>
-        <div class="task-column">
-          <h4>👑 תזכורות אישיות לאוראל</h4>
-          <div class="add-line"><input id="orelTaskText" placeholder="תזכורת אישית חדשה"><button onclick="addTask('orel')">➕</button></div>
-          <div id="orelTasks"></div>
-        </div>
-      </div>
-
-      <details class="history-panel compact-history">
-        <summary>🕘 היסטוריית ביצוע משימות</summary>
-        <div id="taskHistory"></div>
-      </details>
-    </div>
-
-    <div class="subcard">
-      <h3>1. פתיחת יום — סיבוב מקררים</h3>
-      <label class="check-row"><input id="fridgeTour" type="checkbox"> ביצעתי סיבוב מסודר בכל המקררים</label>
-
-      <label>איזו סחורה ישנה חייבת להסתיים היום?</label>
-      <textarea id="oldStock" placeholder="לדוגמה: כרוב לבן מאתמול, 2 קופסאות סלט ירוק"></textarea>
-
-      <label>בדיקת טריות לכל המוצרים</label>
-      <select id="freshnessStatus">
-        <option>הכול טרי ותקין</option>
-        <option>נמצאה בעיית טריות</option>
-        <option>צריך לבדוק שוב בהמשך היום</option>
+      <label for="middayDecision">מה החלטתי?</label>
+      <select id="middayDecision">
+        <option value="">בחר החלטה</option>
+        <option>להמשיך כרגיל</option>
+        <option>להכניס השלמה קטנה</option>
+        <option>להכניס השלמה גדולה</option>
+        <option>להאט הכנות</option>
+        <option>לעצור הכנות</option>
       </select>
-
-      <label>האם יש מוצר שנראה לא תקין?</label>
-      <textarea id="abnormalProduct" placeholder="אם לא — להשאיר ריק. אם כן — מוצר, כמות ומה נראה לא תקין"></textarea>
-
-      <label>האם קיים חוסר במוצר מסוים?</label>
-      <textarea id="shortage" placeholder="לדוגמה: חסרות 2 קופסאות טחינה / חסר כרוב סגול"></textarea>
+      <label for="middayNote">הערה קצרה — לא חובה</label>
+      <input id="middayNote" placeholder="לדוגמה: היום חלש, לא להכניס עוד תפוח אדמה">
     </div>
 
-    <div class="subcard">
-      <h3>2. טעימות בוקר — 2 עד 3 מוצרים</h3>
-      <div class="taste-grid" id="tasteRows"></div>
-    </div>
-
-    <div class="subcard">
-      <h3>3. שלושת היעדים שלי להיום</h3>
-      <input id="goal1" placeholder="יעד 1 — אוכל / כמויות / פחת">
-      <input id="goal2" placeholder="יעד 2 — עובדים / שעות">
-      <input id="goal3" placeholder="יעד 3 — סדר / ניקיון / איכות">
-    </div>
-
-    <button class="save section-save" onclick="saveMorningReport()">שמור דיווח בוקר ✅</button>
-    <p class="hint section-save-hint">שומר את סיבוב המקררים, הטעימות ושלושת היעדים. אפשר לסגור ולחזור בצהריים.</p>
-
-    <div class="subcard">
-      <h3>4. בדיקת אמצע יום</h3>
-      <div class="three-grid">
-        <div><label>האם הכול נקי?</label><select id="midClean"><option>כן</option><option>חלקית</option><option>לא</option></select></div>
-        <div><label>האם צריך להכניס עוד אוכל?</label><select id="midMoreFood"><option>לא</option><option>כן — השלמה קטנה</option><option>כן — השלמה גדולה</option></select></div>
-        <div><label>הכנות</label><select id="midPrep"><option>להמשיך כרגיל</option><option>להאט</option><option>לעצור הכנות</option><option>להגביר הכנות</option></select></div>
-      </div>
-      <label>מצב היום בפועל</label>
-      <select id="actualLoad"><option>חלש</option><option selected>רגיל</option><option>חזק</option><option>חזק מאוד</option></select>
-      <label>מה ראיתי ומה החלטתי?</label>
-      <textarea id="midDecision" placeholder="לדוגמה: היום חלש, עצרתי הכנת תפוח אדמה ושחררתי עובד לאחר שסיים"></textarea>
-    </div>
-
-    <button class="save section-save" onclick="saveMiddayReport()">שמור בדיקת אמצע יום ✅</button>
-    <p class="hint section-save-hint">מעדכן את אותו דוח של היום ולא יוצר דוח כפול.</p>
-
-    <div class="subcard">
-      <h3>5. דיווח סוף יום</h3>
-
-      <div class="section-title compact employee-end-title">
+    <div class="form-card">
+      <div class="two-grid compact-grid">
         <div>
-          <h4>⏰ שעות יציאה של העובדים</h4>
-          <p class="hint">ממלאים בסוף היום: יציאה מתוכננת מול יציאה בפועל. הכול נשמר בהיסטוריה ומצטבר לדוח השבועי.</p>
+          <label for="foodDate">תאריך</label>
+          <input id="foodDate" type="date">
         </div>
-        <button class="small secondary" type="button" onclick="addEmployeeRow()">➕ הוסף עובד</button>
-      </div>
-      <div id="employeeRows"></div>
-
-      <label>מה נשאר בסוף היום ובאיזו כמות?</label>
-      <textarea id="endLeftovers" placeholder="לדוגמה: 4 עופות, חצי גסטרו תפוח אדמה, רבע פיילה סלט"></textarea>
-
-      <div class="three-grid">
-        <div><label>מוצר עיקרי שנזרק</label><input id="wasteProduct" placeholder="לדוגמה: תפוח אדמה"></div>
-        <div><label>כמות שנזרקה</label><input id="wasteQuantity" type="number" min="0" step="0.1" placeholder="0"></div>
-        <div><label>יחידה</label><select id="wasteUnit"><option>לא נזרק</option><option>יחידות</option><option>ק״ג</option><option>מגשים</option><option>גסטרו</option><option>פיילות</option></select></div>
+        <div>
+          <label for="shiftLevel">מצב היום</label>
+          <select id="shiftLevel"><option>חלש</option><option selected>רגיל</option><option>חזק</option><option>חזק מאוד</option></select>
+        </div>
       </div>
 
-      <label>למה זה נשאר או נזרק?</label>
-      <textarea id="wasteReason" placeholder="לדוגמה: הכנו לפי יום רגיל אבל המכירות היו חלשות"></textarea>
+      <h3 class="products-title">מה נשאר בסוף היום?</h3>
+      <div id="foodProducts" class="quick-products"></div>
 
-      <label>האם צצה בעיה חדשה היום?</label>
-      <textarea id="newIssueSummary" placeholder="רושמים כאן בקצרה. בעיה שדורשת מעקב יש לפתוח גם במסך דיווח בעיה"></textarea>
+      <label for="foodKeepNote">מה היה מדויק וכדאי לשמר?</label>
+      <textarea id="foodKeepNote" placeholder="לדוגמה: כמות הקולסלו הייתה מדויקת"></textarea>
 
-      <label>מה משנים מחר?</label>
-      <textarea id="tomorrowChange" placeholder="לדוגמה: להכניס מגש אחד פחות ולבדוק שוב בשעה 13:00"></textarea>
+      <label for="foodTomorrowNote">מה לשנות למחר?</label>
+      <textarea id="foodTomorrowNote" placeholder="לדוגמה: מגש אחד פחות תפוח אדמה"></textarea>
+
+      <button class="primary-btn" type="button" onclick="saveFoodReport()">שמור מעקב אוכל ✅</button>
     </div>
 
-    <button class="save" onclick="saveDailyReport()">שמור דיווח סוף יום והיסטוריה ✅</button>
-    <div id="dailySaveHint" class="save-hint"></div>
-
-    <details class="history-panel">
-      <summary>📚 היסטוריית דוחות יומיים</summary>
-      <div id="dailyHistory"></div>
-    </details>
-
-    <div class="daily-summary-actions">
-      <button class="secondary" onclick="copyLatestDailySummary()">📲 העתק סיכום יומי לאלעד</button>
-      <p class="hint">המערכת מכינה הודעה מהדוח האחרון: בדיקות, בעיות, שעות עובדים, פחת ומה משנים מחר.</p>
-    </div>
-
-    <details class="history-panel">
-      <summary>🍗 דוח אוכל מפורט וסטטיסטיקה</summary>
+    <details class="history-box">
+      <summary>📚 היסטוריית אוכל וכמויות</summary>
       <div>
-        <label>תאריך</label><input id="foodDate" type="date">
-        <label>עומס במשמרת</label>
-        <select id="shiftLevel"><option>חלש</option><option selected>רגיל</option><option>חזק</option><option>חזק מאוד</option></select>
-        <div id="foodProducts" class="food-products"></div>
-        <div class="three-grid">
-          <div><label>רמת טעם כללית</label><select id="foodTaste"><option>מעולה</option><option selected>טוב</option><option>בינוני</option><option>לא טוב</option></select></div>
-          <div><label>הערת טעם / איכות</label><input id="tasteNote" placeholder="מה טעמת ומה מצאת"></div>
-          <div><label>הערת פחת</label><input id="foodWasteNote" placeholder="מה נזרק ולמה"></div>
-        </div>
-        <label>הערה כללית</label><textarea id="foodNote" placeholder="אירועים חריגים, חוסר או עומס"></textarea>
-        <label>הנחיה למחר</label><textarea id="foodTomorrowNote" placeholder="מה להכין יותר או פחות מחר"></textarea>
-        <button class="save" onclick="saveFoodReport()">שמור דוח אוכל והיסטוריה ✅</button>
-        <div id="foodInsights" class="insights"></div>
+        <div id="foodTotals" class="history-totals"></div>
         <div id="foodHistory"></div>
       </div>
     </details>
+  </section>
 
-    <details class="history-panel">
-      <summary>💡 שיפורים והתייעלות</summary>
+  <section id="greenView" class="view module-view" aria-labelledby="greenTitle">
+    <div class="module-head">
+      <button class="back-btn" type="button" onclick="goHome()">→ חזרה</button>
       <div>
-        <div class="three-grid improvement-add">
-          <div><label>רעיון / שיפור</label><input id="improveText" placeholder="לדוגמה: להתחיל הכנות למחר חצי שעה מוקדם יותר"></div>
-          <div><label>עדיפות</label><select id="improvePriority"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
-          <div class="button-cell"><button class="secondary" onclick="addImprovement()">➕ הוסף שיפור</button></div>
+        <h2 id="greenTitle">🥗 מעקב גרין בול</h2>
+        <p>מילוי קצר בסיום העבודה בגרין בול.</p>
+      </div>
+    </div>
+
+    <div class="form-card green-form-card">
+      <div class="two-grid compact-grid">
+        <div><label for="greenDate">תאריך</label><input id="greenDate" type="date"></div>
+        <div><label for="greenStatus">מצב הכמויות</label><select id="greenStatus"><option>הכול היה מדויק</option><option>נשאר מעט</option><option>נשאר הרבה</option><option>היה חסר</option></select></div>
+      </div>
+
+      <label for="greenAccurate">מה היה מדויק היום?</label>
+      <textarea id="greenAccurate" placeholder="לדוגמה: ירקות, אורז וחזה עוף"></textarea>
+
+      <h3 class="products-title">כמה נשאר וכמה נזרק?</h3>
+      <p class="field-hint">מוסיפים רק מוצרים שהיה בהם משהו שנשאר או נזרק.</p>
+      <div id="greenQuantityRows" class="quantity-rows"></div>
+      <button class="add-row-btn" type="button" onclick="addGreenQuantityRow()">➕ הוסף מוצר</button>
+
+      <label for="greenWasteNote">הערת פחת או חוסר — לא חובה</label>
+      <textarea id="greenWasteNote" placeholder="לדוגמה: נשאר כי היום היה חלש"></textarea>
+
+      <label for="greenTomorrow">מה לשנות למחר?</label>
+      <textarea id="greenTomorrow" placeholder="לדוגמה: להפחית מעט לחם, כל השאר ללא שינוי"></textarea>
+
+      <details class="plan-box">
+        <summary>📏 הצג את תוכנית הכמויות שסיכמנו</summary>
+        <div class="plan-list">
+          <p>גזר, קולרבי וסלק — שליש גסטרו</p>
+          <p>כרוב לבן וסגול — פחות 40%</p>
+          <p>תפוח — פחות 25%</p>
+          <p>עגבניות שרי — פחות 20%</p>
+          <p>עגבניות רגילות — פחות 25%</p>
+          <p>ברוקולי — פחות 20%</p>
+          <p>אורז לבן — 2 ליטר</p>
+          <p>חסה — לא לשטוף הכול מראש</p>
+          <p>חזה עוף במלח גס ועוף עשבי תיבול — פחות 30%</p>
         </div>
-        <div id="improvementsList"></div>
+      </details>
+
+      <button class="primary-btn green-btn" type="button" onclick="saveGreenReport()">שמור מעקב גרין בול ✅</button>
+    </div>
+
+    <details class="history-box">
+      <summary>📚 היסטוריית גרין בול וכמויות</summary>
+      <div>
+        <div id="greenTotals" class="history-totals"></div>
+        <div id="greenHistory"></div>
       </div>
     </details>
   </section>
 
-
-
-  <section class="card green-bowl-card" id="greenBowl">
-    <div class="section-title">
+  <section id="tasksView" class="view module-view" aria-labelledby="tasksTitle">
+    <div class="module-head">
+      <button class="back-btn" type="button" onclick="goHome()">→ חזרה</button>
       <div>
-        <h2>🥗 מעקב גרין בול</h2>
-        <p class="hint">דיווח קצר בסיום המשמרת כדי לראות אם הקיצוץ בכמויות מדויק ומה צריך לשנות מחר.</p>
+        <h2 id="tasksTitle">✅ המשימות שלי</h2>
+        <p>משימות קבועות ותזכורות אישיות במקום אחד.</p>
       </div>
-      <span id="greenBowlBadge" class="step-badge">0 דוחות</span>
     </div>
-    <div class="three-grid">
-      <div><label>תאריך</label><input id="greenBowlDate" type="date"></div>
-      <div><label>מצב הכמויות</label><select id="greenBowlStatus"><option>הכול היה מדויק</option><option>נשאר מעט</option><option>נשאר הרבה</option><option>היה חסר</option></select></div>
-      <div><label>ציון היום</label><select id="greenBowlRating"><option>5 — מצוין</option><option>4 — טוב מאוד</option><option>3 — סביר</option><option>2 — דורש שינוי</option><option>1 — לא טוב</option></select></div>
+
+    <div class="fixed-reminder">
+      <span>🕛</span>
+      <div><b>כל יום ב־12:00</b><small>לבדוק את מצב המסעדה והאם צריך להכניס עוד אוכל.</small></div>
+      <button type="button" onclick="openView('foodView','middayCheck')">פתח בדיקה</button>
     </div>
-    <details class="plan-panel">
-      <summary>📏 תוכנית הכמויות שסיכמנו</summary>
-      <div class="plan-grid">
-        <label class="check-row"><input type="checkbox" data-gb-plan value="גזר, קולרבי וסלק — שליש גסטרו"> גזר, קולרבי וסלק — שליש גסטרו</label>
-        <label class="check-row"><input type="checkbox" data-gb-plan value="כרוב לבן וסגול — פחות 40%"> כרוב לבן וסגול — פחות 40%</label>
-        <label class="check-row"><input type="checkbox" data-gb-plan value="תפוח — פחות 25%"> תפוח — פחות 25%</label>
-        <label class="check-row"><input type="checkbox" data-gb-plan value="שרי וברוקולי — פחות 20%"> שרי וברוקולי — פחות 20%</label>
-        <label class="check-row"><input type="checkbox" data-gb-plan value="עגבנייה רגילה — פחות 25%"> עגבנייה רגילה — פחות 25%</label>
-        <label class="check-row"><input type="checkbox" data-gb-plan value="אורז לבן — 2 ליטר"> אורז לבן — 2 ליטר</label>
-        <label class="check-row"><input type="checkbox" data-gb-plan value="חסה — לא לשטוף הכול מראש"> חסה — לא לשטוף הכול מראש</label>
-        <label class="check-row"><input type="checkbox" data-gb-plan value="חזה עוף במלח גס ועוף עשבי תיבול — פחות 30%"> חזה עוף במלח גס ועוף עשבי תיבול — פחות 30%</label>
+
+    <div class="form-card">
+      <h3>➕ משימה או תזכורת חדשה</h3>
+      <label for="taskText">מה צריך לעשות?</label>
+      <input id="taskText" placeholder="לדוגמה: לשלוח לאלעד את הדוח">
+
+      <div class="two-grid compact-grid">
+        <div>
+          <label for="taskKind">סוג</label>
+          <select id="taskKind" onchange="toggleReminderFields()">
+            <option value="daily">משימה יומית</option>
+            <option value="weekly">משימה שבועית</option>
+            <option value="monthly">משימה חודשית</option>
+            <option value="orel">משימה אישית</option>
+            <option value="reminder">תזכורת עם תאריך ושעה</option>
+          </select>
+        </div>
+        <div id="reminderDateWrap" class="conditional hidden">
+          <label for="taskDate">תאריך</label>
+          <input id="taskDate" type="date">
+        </div>
       </div>
-    </details>
-    <label>מה נשאר / מה היה חסר?</label><textarea id="greenBowlLeftovers" placeholder="לדוגמה: לחם מעט, שאר הכמויות היו מדויקות"></textarea>
-    <label>מה ביצעתי היום?</label><textarea id="greenBowlActions" placeholder="שינויים בכמויות, עצירת הכנות, השלמות"></textarea>
-    <label>מה לשנות מחר?</label><textarea id="greenBowlTomorrow" placeholder="להגדיל / להקטין מוצר מסוים"></textarea>
-    <button class="save" onclick="saveGreenBowlReport()">שמור דוח גרין בול ✅</button>
-    <details class="history-panel" open>
-      <summary>📚 היסטוריית גרין בול</summary>
-      <div id="greenBowlHistory"></div>
-    </details>
-  </section>
-
-  <section class="card" id="suppliers">
-    <div class="section-title">
-      <div>
-        <h2>🚚 ספקים ומחירים</h2>
-        <p class="hint">רושמים כל מחיר חדש. שום מחיר קודם לא נדרס — הכול נשאר בהיסטוריה.</p>
+      <div id="reminderTimeWrap" class="conditional hidden">
+        <label for="taskTime">שעה</label>
+        <input id="taskTime" type="time">
       </div>
-      <span id="supplierBadge" class="step-badge">0 רשומות</span>
-    </div>
-    <div class="three-grid">
-      <div><label>ספק</label><input id="supplierName" list="supplierNames" placeholder="שם הספק"><datalist id="supplierNames"><option value="קצב 1"><option value="קצב 2"><option value="קצב 3"><option value="קצב 4"><option value="קצב 5"><option value="סרדה"><option value="שיווק האור"><option value="עונות ישראל"><option value="לחמים"><option value="קוקה קולה"></datalist></div>
-      <div><label>מוצר</label><input id="supplierProduct" placeholder="לדוגמה: חזה עוף"></div>
-      <div><label>תאריך מחיר</label><input id="supplierDate" type="date"></div>
-    </div>
-    <div class="three-grid">
-      <div><label>מחיר</label><input id="supplierPrice" type="number" min="0" step="0.01" placeholder="0.00"></div>
-      <div><label>יחידה</label><select id="supplierUnit"><option>לק״ג</option><option>ליחידה</option><option>לקרטון</option><option>לארגז</option><option>לחבילה</option><option>אחר</option></select></div>
-      <div><label>הערה</label><input id="supplierNote" placeholder="מבצע, איכות, שינוי מחיר"></div>
-    </div>
-    <button class="save" onclick="saveSupplierPrice()">שמור מחיר ספק והיסטוריה ✅</button>
-    <div class="search-line"><input id="supplierSearch" placeholder="🔍 חיפוש ספק או מוצר"><button class="secondary" onclick="renderSuppliers()">חפש</button></div>
-    <div id="supplierHistory"></div>
-  </section>
-
-  <section class="card history-center" id="historyCenter">
-    <div class="section-title">
-      <div>
-        <h2>🔍 מרכז היסטוריה וחיפוש</h2>
-        <p class="hint">כאן מחפשים הכול במקום אחד: משימות, שעות, אוכל, דוחות, תזכורות, בעיות, גרין בול וספקים.</p>
-      </div>
-      <span id="historyCountBadge" class="step-badge">0 תוצאות</span>
-    </div>
-    <div class="history-filters">
-      <input id="historySearch" placeholder="חיפוש חופשי: עובד, מוצר, משימה, הערה...">
-      <select id="historyType"><option value="all">הכול</option><option value="daily">דוחות יומיים</option><option value="employees">שעות עובדים</option><option value="tasks">משימות</option><option value="food">אוכל ופחת</option><option value="reminders">אישי אוראל</option><option value="issues">בעיות ומעקבים</option><option value="greenBowl">גרין בול</option><option value="suppliers">ספקים</option><option value="weekly">דוחות שבועיים</option><option value="audit">פעולות מערכת</option></select>
-      <input id="historyFrom" type="date" aria-label="מתאריך">
-      <input id="historyTo" type="date" aria-label="עד תאריך">
-      <button class="secondary" onclick="clearHistoryFilters()">נקה</button>
-    </div>
-    <div id="unifiedHistory"></div>
-  </section>
-
-  <section class="card" id="issue">
-    <div class="section-title">
-      <div>
-        <h2>🚨 דיווח בעיה</h2>
-        <p class="hint">כל בעיה מקבלת כמות, סיבה, פתרון ותאריך בדיקה חוזרת.</p>
-      </div>
-      <span class="step-badge warning">מעקב</span>
+      <button class="primary-btn purple-btn" type="button" onclick="addTaskOrReminder()">הוסף ✅</button>
     </div>
 
-    <label>תאריך</label><input id="issueDate" type="date">
-    <label>כותרת הבעיה</label><input id="issueTitle" placeholder="לדוגמה: נשאר יותר מדי תפוח אדמה">
-    <label>תחום</label>
-    <select id="issueCategory">
-      <option>אוכל וכמויות</option><option>איכות וטריות</option><option>פחת ובלאי</option><option>עובדים ושעות</option><option>ניקיון וסדר</option><option>מקררים ומלאי</option><option>ספקים ומחירים</option><option>ציוד ותחזוקה</option><option>אחר</option>
-    </select>
-    <label>מה בדיוק הבעיה?</label><textarea id="issueDescription" placeholder="תיאור ברור של מה שראיתי"></textarea>
-
-    <div class="three-grid">
-      <div><label>כמות</label><input id="issueQuantity" type="number" min="0" step="0.1" placeholder="0"></div>
-      <div><label>יחידה</label><input id="issueUnit" placeholder="ק״ג / מגשים / דקות / יחידות"></div>
-      <div><label>אחראי לטיפול</label><input id="issueOwner" placeholder="אוראל / עובד / ספק"></div>
+    <div class="task-filter" role="tablist" aria-label="סינון משימות">
+      <button class="active" data-task-filter="open" onclick="setTaskFilter('open',this)">פתוחות</button>
+      <button data-task-filter="daily" onclick="setTaskFilter('daily',this)">יומיות</button>
+      <button data-task-filter="weekly" onclick="setTaskFilter('weekly',this)">שבועיות</button>
+      <button data-task-filter="personal" onclick="setTaskFilter('personal',this)">אישיות</button>
     </div>
+    <div id="tasksList" class="tasks-list"></div>
 
-    <label>למה זה קרה?</label><textarea id="issueCause" placeholder="הסיבה המשוערת"></textarea>
-    <label>מה הפתרון שבחרתי?</label><textarea id="issueSolution" placeholder="פעולה ברורה שאפשר לבדוק"></textarea>
-    <label>מתי בודקים שוב?</label><input id="issueFollowUp" type="date">
-    <label>תמונה (לא חובה)</label><input id="issuePhoto" type="file" accept="image/*" capture="environment">
-    <p class="hint">התמונה מוקטנת לפני השמירה כדי לשמור אותה יחד עם הבעיה בענן.</p>
-
-    <button class="save danger" onclick="saveIssue()">פתח מעקב ושמור בהיסטוריה 🚨</button>
-  </section>
-
-  <section class="card" id="trackers">
-    <div class="section-title">
-      <div>
-        <h2>🔎 מעקבים פתוחים</h2>
-        <p class="hint">בעיה נשארת כאן עד שבדקת שהפתרון עבד.</p>
-      </div>
-      <span id="openBadge" class="step-badge warning">0 פתוחים</span>
-    </div>
-    <div id="openIssues"></div>
-
-    <details class="history-panel">
-      <summary>✅ היסטוריית בעיות שנסגרו</summary>
-      <div id="closedIssues"></div>
-    </details>
-  </section>
-
-  <section class="card" id="weekly">
-    <div class="section-title">
-      <div>
-        <h2>📊 דוח שבועי</h2>
-        <p class="hint">נתונים אמיתיים מהדוחות, מהשעות ומהבעיות שנרשמו.</p>
-      </div>
-      <button class="small secondary" onclick="refreshWeekly()">רענן נתונים</button>
-    </div>
-
-    <div id="weeklyStats" class="weekly-stats"></div>
-    <div id="weeklyInsights" class="insights"></div>
-
-    <div class="subcard">
-      <h3>הסיכום הניהולי שלי לשבוע</h3>
-      <label>מה אפשר לחסוך?</label><textarea id="weeklySave" placeholder="פחת, שעות, כמויות, ספקים"></textarea>
-      <label>מה אפשר לייעל?</label><textarea id="weeklyOptimize" placeholder="סדר עבודה, הכנות, חלוקת עובדים"></textarea>
-      <label>מה אפשר לשפר?</label><textarea id="weeklyImprove" placeholder="איכות, ניקיון, שירות, מעקב"></textarea>
-      <label>שלוש החלטות לשבוע הבא</label>
-      <input id="decision1" placeholder="החלטה 1">
-      <input id="decision2" placeholder="החלטה 2">
-      <input id="decision3" placeholder="החלטה 3">
-      <button class="save" onclick="saveWeeklyReport()">שמור סיכום שבועי ✅</button>
-    </div>
-
-    <details class="history-panel" open>
-      <summary>📚 היסטוריית סיכומים שבועיים</summary>
-      <div id="weeklyHistory"></div>
-    </details>
-
-    <details class="history-panel">
-      <summary>📦 נתונים מהגרסה הקודמת</summary>
-      <div id="legacyHistory"></div>
+    <details class="history-box">
+      <summary>🕘 היסטוריית ביצוע</summary>
+      <div id="taskHistory"></div>
     </details>
   </section>
 </main>
 
-<div id="employeeEditModal" class="modal hidden" aria-hidden="true">
-  <div class="modal-card">
-    <div class="section-title compact">
-      <div>
-        <h2>✏️ עדכון שעות עובדים</h2>
-        <p id="employeeEditDate" class="hint"></p>
-      </div>
-      <button class="small secondary" type="button" onclick="closeEmployeeHoursEditor()">סגור</button>
-    </div>
-    <p class="hint">אפשר לשמור את הדוח גם בלי שעת יציאה בפועל, ולעדכן אותה ביום למחרת. כל עדכון נשמר עם תאריך ושעה.</p>
-    <div id="employeeEditRows"></div>
-    <button class="save" type="button" onclick="saveEmployeeHoursEdit()">שמור את עדכון השעות ✅</button>
-    <p id="employeeEditHint" class="save-hint"></p>
-  </div>
-</div>
-
-<div id="toast" class="toast"></div>
-<script type="module" src="app.js?v=50"></script>
+<div id="toast" class="toast" role="status"></div>
+<script type="module" src="app.js?v=61"></script>
 </body>
 </html>
